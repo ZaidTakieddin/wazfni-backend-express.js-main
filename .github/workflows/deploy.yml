@@ -18,25 +18,37 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
+            # Ensure that the necessary binaries are available
             export PATH=$HOME/.bun/bin:/usr/local/bin:$PATH
 
+            # Navigate to the project directory
             cd /root/wazfni-backend-express.js-main
 
-            echo "Resetting local changes to allow clean git pull..."
+            # Remove conflicting migration files
+            rm -rf prisma/migrations/*
+
+            # Pull the latest changes from the repository
             git reset --hard HEAD
             git pull origin main
 
-            echo "Installing dependencies..."
+            # Install dependencies
             bun install
 
-            echo "Generating Prisma client..."
+            # Generate Prisma client
             bunx prisma generate
 
-            echo "Running Prisma migrations..."
+            # Resolve any migration conflicts (if necessary)
+            bunx prisma migrate resolve --applied "20250503121507_init"
+
+            # Run migrations
             bunx prisma migrate deploy
 
-            echo "Building the project..."
+            # Build the project
             bun run build
 
-            echo "Restarting or starting PM2 process..."
+            # Ensure Node.js is installed if it's missing
+            curl -sL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get install -y nodejs
+
+            # Restart or start PM2 process
             pm2 restart wazfni-backend-express.js || pm2 start "bun run start" --name wazfni-backend-express.js
