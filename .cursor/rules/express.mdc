@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: This rule explains Express.js conventions and best practices for Node.js backend development.
+globs: /*.js,/*.ts
+alwaysApply: false
+---
+
+# Project Setup
+- Use TypeScript
+- Use ESLint and Prettier
+- Use dotenv for environment variables
+- Create a .env.example file
+
+# Folder Structure
+src/
+├── config/           # App and database configuration
+├── controllers/      # Route handlers
+├── routes/           # Route definitions
+├── services/         # Business logic/services
+├── middlewares/      # Express middlewares
+├── models/           # DB or custom models
+├── validations/      # Request validation schemas
+├── utils/            # Utility functions
+├── types/            # Custom TypeScript types/interfaces
+├── jobs/             # Background jobs (optional)
+├── app.ts            # Express app initialization
+└── server.ts         # App entry point
+
+# Coding Best Practices
+- Follow MVC pattern
+- Use Zod for validation
+- Implement centralized error handling middleware
+- Create custom ApiError classes
+- Use async/await with try/catch
+- Use services to keep controllers clean
+- Use winston for logging
+- Use proper middleware order: body parsers, custom middleware, routes, error handlers
+- Organize routes using Express Router for modular code structure
+- Use async/await with proper error handling and try/catch blocks
+- Create a centralized error handler middleware as the last middleware
+- Use environment variables for configuration with a config module
+- Use middleware for authentication and authorization
+- Use appropriate HTTP status codes in responses
+
+# Security Practices
+- Use helmet for setting security headers
+- Use cors with defined origins
+- Sanitize data with xss-clean
+- Implement rate limiting with express-rate-limit or rate-limiter-flexible
+
+# Tools
+- Use Prisma PostgrSQL to interact with database
+- Use JWT for authentication
+- Use mutlar for files uploads and also make sure file uploads follow best practices in coding and securities
+- Use compression for performance
+

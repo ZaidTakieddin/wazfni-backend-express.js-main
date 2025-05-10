@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022", // Or a newer target if desired
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true, // Recommended for stricter checks
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    /* If NOT transpiling with TypeScript: */
+    // "module": "node16", // Or "nodenext"
+    // "noEmit": true,
+
+    /* If your code runs in the DOM: */
+    // "lib": ["es2022", "dom", "dom.iterable"],
+
+    /* If you're building for a library: */
+    // "declaration": true,
+
+    /* If transpiling with TypeScript: */
+    "module": "commonjs", // Node.js typically uses CommonJS
+    "outDir": "./dist",
+    "rootDir": "./src", // Specify root directory of source files
+    // "sourceMap": true, // Optional: Generate source maps
+
+    /* Additional Options */
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".", // Allows for path aliases
+    "paths": {
+      "@/*": ["./src/*"] // Example path alias
+    }
+  },
+  "include": ["src/**/*"], // Include all files in the src directory
+  "exclude": ["node_modules", "dist"] // Exclude node_modules and dist
+}

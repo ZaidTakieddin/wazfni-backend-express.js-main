@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "./src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum WorkType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  OTHER
+}
+
+enum ContractType {
+  REMOTE
+  HYBRID
+  ON_SITE
+}
+
+enum ExperienceLevel {
+  ENTRY
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  MANAGER
+  EXPERT
+}
+
+enum Currency {
+  USD
+  EUR
+  EGP
+  // Add more as needed
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String? // Make password optional for Google-only users
+  role         Role      @default(USER)
+  isVerified   Boolean   @default(false)
+  lastLogin    DateTime?
+  name         String?
+  googleId     String?   @unique // Add this field
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  applications Application[] // User's applications
+  profile      UserProfile?
+  company      Company?
+  bookmarks    Bookmark[]   // Add bookmarks relation
+}
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique // Foreign key relation to User
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName            String?
+  lastName             String?
+  jobTitle             String?
+  educationCertificate String?
+  cv                   String? // Path or identifier to the stored CV file
+  avatar               String? // Path or identifier to the stored avatar file
+  phone                String?
+  city                 String?
+  address              String?
+  birthDate            DateTime?
+  gender               Gender?
+
+  // New relations
+  workExperiences       WorkExperience[]
+  educationCertificates EducationCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id     String @id @default(cuid())
+  userId String @unique // Foreign key relation to User
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  logo                String? // Path or identifier to the stored logo file
+  name                String?
+  workField           String?
+  description         String?
+  location            String? // Or consider separate fields like address, city, country
+  size                String? // Consider enum or number range
+  website             String? // Add URL validation if needed
+  city                String?
+  commercial_register String?
+  tax_number          String?
+
+  jobs Job[] // Relation to jobs (one-to-many)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id   String  @id @default(cuid())
+  name String  @unique
+  icon String?
+  jobs Job[] // Relation to jobs (many-to-many)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id        String  @id @default(cuid())
+  companyId String // Foreign key relation to Company
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  jobTitle        String
+  categories      Category[]
+  workType        WorkType
+  contractType    ContractType
+  experienceLevel ExperienceLevel
+  experienceYears Int?
+  minSalary       Int?
+  maxSalary       Int?
+  currency        Currency?
+  jobFeatures     String[]
+  description     String
+  requirements    String
+  questions       String[]
+
+  applications Application[] // Applications received for this job
+  bookmarks    Bookmark[]   // Add bookmarks relation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// New model for Work Experience
+model WorkExperience {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  jobTitle    String
+  companyName String
+  startDate   DateTime // Store as DateTime, format as YYYY-MM in application layer
+  endDate     DateTime? // Nullable if current job
+  description String? // Nullable
+  current     Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userProfileId]) // Add index for performance
+}
+
+// New model for Education/Certificates
+model EducationCertificate {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  degree          String
+  university      String
+  certificateName String? // Optional field for specific certificate name
+  startDate       DateTime // Store as DateTime, format as YYYY-MM in application layer
+  endDate         DateTime? // Nullable if ongoing
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userProfileId]) // Add index for performance
+}
+
+// Add this new model
+model Application {
+  id          String @id @default(cuid())
+  jobId       String
+  job         Job    @relation(fields: [jobId], references: [id], onDelete: Cascade) // Link to Job
+  applicantId String
+  applicant   User   @relation(fields: [applicantId], references: [id], onDelete: Cascade) // Link to User (applicant)
+
+  answers String[] // Array of answers corresponding to job questions
+  cvPath  String // Relative path to the CV used for this application
+  status  String   @default("PENDING") // e.g., PENDING, REVIEWED, REJECTED, HIRED
+
+  appliedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobId, applicantId]) // Ensure a user applies only once per job
+  @@index([jobId])
+  @@index([applicantId])
+}
+
+// Add this new model for bookmarks
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, jobId]) // Ensure a user can only bookmark a job once
+  @@index([userId])
+  @@index([jobId])
+}
