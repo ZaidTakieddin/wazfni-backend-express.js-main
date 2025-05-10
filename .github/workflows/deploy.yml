@@ -3,7 +3,7 @@ name: Deploy Bun Backend
 on:
   push:
     branches:
-      - main  # or your default branch
+      - main
 
 jobs:
   build-and-deploy:
@@ -18,10 +18,25 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
+            export PATH=$HOME/.bun/bin:/usr/local/bin:$PATH
+
             cd /root/wazfni-backend-express.js-main
+
+            echo "Resetting local changes to allow clean git pull..."
+            git reset --hard HEAD
             git pull origin main
+
+            echo "Installing dependencies..."
             bun install
+
+            echo "Generating Prisma client..."
             bunx prisma generate
+
+            echo "Running Prisma migrations..."
             bunx prisma migrate deploy
+
+            echo "Building the project..."
             bun run build
+
+            echo "Restarting or starting PM2 process..."
             pm2 restart wazfni-backend-express.js || pm2 start "bun run start" --name wazfni-backend-express.js
