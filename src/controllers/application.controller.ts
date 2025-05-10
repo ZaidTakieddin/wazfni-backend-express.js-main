@@ -7,6 +7,9 @@ import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 
 export const applyForJob = catchAsync(async (req: Request, res: Response) => {
+  console.log('req.body', req.body);
+  console.log('req.file', req.file);
+
   if (!req.user) {
     throw new ApiError(
       httpStatus.UNAUTHORIZED,
