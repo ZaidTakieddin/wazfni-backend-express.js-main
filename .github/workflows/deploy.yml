@@ -24,4 +24,4 @@ jobs:
             bunx prisma generate
             bunx prisma migrate deploy
             bun run build
-            pm2 restart wazfni-api || pm2 start "bun run start" --name wazfni-api
+            pm2 restart wazfni-backend-express.js || pm2 start "bun run start" --name wazfni-backend-express.js
