@@ -31,9 +31,8 @@ jobs:
       - name: Build project (if applicable)
         run: bun run build
 
-      # Deploy via SSH
-      - name: Deploy to Contabo Server
-        uses: appleboy/scp-action@v0.1.7
+      - name: SSH into server and restart Bun app
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -41,4 +40,4 @@ jobs:
           port: 22
           script: |
             cd /root/wazfni-backend-express.js-main
-            pm2 restart wazfni-api || pm2 start bun run start --name wazfni-api
+            pm2 restart wazfni-api || pm2 start "bun run start" --name wazfni-api
