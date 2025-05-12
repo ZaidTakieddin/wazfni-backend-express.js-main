@@ -21,7 +21,7 @@ const app: Express = express();
 app.use(helmet());
 
 // Enable CORS - adjust origins as needed for production
-// app.use(cors());
+app.use(cors());
 // app.options('*', cors()); // Enable pre-flight requests for all routes - Temporarily commented out
 
 // Parse json request body
