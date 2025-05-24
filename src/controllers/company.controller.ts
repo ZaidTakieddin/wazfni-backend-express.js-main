@@ -40,8 +40,14 @@ export const updateMyCompany = catchAsync(
       throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
     }
 
-    const logoPath = req.file?.path; // Get path from multer
-    // Consider how to handle logo deletion if needed (e.g., a specific flag in req.body)
+    console.log('Update company request:', {
+      body: req.body,
+      file: req.file,
+      user: req.user.id,
+    });
+
+    const logoPath = req.file?.path;
+    console.log('Logo path:', logoPath);
 
     // Pass text body and separate logo path (or undefined) to service
     const updatedCompany = await companyService.updateCompanyByUserId(
@@ -49,6 +55,8 @@ export const updateMyCompany = catchAsync(
       req.body,
       logoPath,
     );
+
+    console.log('Updated company:', updatedCompany);
     res.send(updatedCompany);
   },
 );
