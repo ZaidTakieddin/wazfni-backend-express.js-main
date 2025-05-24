@@ -30,7 +30,9 @@ const categoriesToSeed: { name: string; icon: string }[] = [
 // Define admin user details
 const adminEmail = 'admin@wazfni.com';
 const adminPassword = 'password'; // Use a strong password in production!
-const adminName = 'Admin';
+const adminFirstName = 'Admin';
+const adminLastName = 'Admin';
+const adminPhoneNumber = '';
 const companyName = 'Wazfni';
 
 async function main() {
@@ -59,13 +61,17 @@ async function main() {
     where: { email: adminEmail },
     update: {
       role: Role.ADMIN,
-      name: adminName,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      phoneNumber: adminPhoneNumber,
     },
     create: {
       email: adminEmail,
       passwordHash: hashedPassword,
       role: Role.ADMIN,
-      name: adminName,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      phoneNumber: adminPhoneNumber,
       isVerified: true,
     },
   });
