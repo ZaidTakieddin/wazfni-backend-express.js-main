@@ -62,7 +62,9 @@ model User {
   role         Role      @default(USER)
   isVerified   Boolean   @default(false)
   lastLogin    DateTime?
-  name         String?
+  firstName    String?
+  lastName     String?
+  phoneNumber  String?
   googleId     String?   @unique // Add this field
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -70,7 +72,7 @@ model User {
   applications Application[] // User's applications
   profile      UserProfile?
   company      Company?
-  bookmarks    Bookmark[]   // Add bookmarks relation
+  bookmarks    Bookmark[] // Add bookmarks relation
 }
 
 model UserProfile {
@@ -150,7 +152,7 @@ model Job {
   questions       String[]
 
   applications Application[] // Applications received for this job
-  bookmarks    Bookmark[]   // Add bookmarks relation
+  bookmarks    Bookmark[] // Add bookmarks relation
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

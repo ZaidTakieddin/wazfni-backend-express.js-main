@@ -22,9 +22,11 @@ const hashPassword = async (password: string): Promise<string> => {
  * @throws {ApiError} if email is already taken.
  */
 export const registerUser = async (
-  userData: Pick<User, 'email' | 'name'> & { password: string },
+  userData: Pick<User, 'email' | 'firstName' | 'lastName' | 'phoneNumber'> & {
+    password: string;
+  },
 ): Promise<Omit<User, 'passwordHash'>> => {
-  const { email, password, name } = userData;
+  const { email, password, firstName, lastName, phoneNumber } = userData;
 
   // Check if email is already taken (handled by DB constraint, but good practice)
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -38,13 +40,18 @@ export const registerUser = async (
     data: {
       email,
       passwordHash: hashedPassword,
-      name: name || null,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      phoneNumber: phoneNumber || null,
     },
   });
 
   await prisma.userProfile.create({
     data: {
       userId: user.id,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      phone: phoneNumber || null,
     },
   });
 
