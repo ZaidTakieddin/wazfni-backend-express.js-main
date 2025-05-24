@@ -331,17 +331,26 @@ export const searchAndFilterJobs = async (
     });
   }
   if (workType) {
-    // Cast string to WorkType enum
-    const workTypeEnum = workType.toUpperCase() as WorkType;
-    // Validate if the provided workType is a valid enum value
-    if (Object.values(WorkType).includes(workTypeEnum)) {
+    // Split the workType string into an array and handle multiple values
+    const workTypeValues = workType
+      .split(',')
+      .map((type) => type.trim().toUpperCase());
+
+    // Validate each workType value
+    const validWorkTypes = workTypeValues.filter((type) =>
+      Object.values(WorkType).includes(type as WorkType),
+    );
+
+    if (validWorkTypes.length > 0) {
       filterConditions.push({
-        workType: workTypeEnum,
+        workType: {
+          in: validWorkTypes as WorkType[],
+        },
       });
     } else {
-      // If workType is provided but invalid, return no results
+      // If none of the provided workTypes are valid, return no results
       console.warn(
-        `Invalid workType query parameter received: ${workType}. Returning empty results.`,
+        `Invalid workType query parameters received: ${workType}. Returning empty results.`,
       );
       return []; // Return empty array immediately
     }
