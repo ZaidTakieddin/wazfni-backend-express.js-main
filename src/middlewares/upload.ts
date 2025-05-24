@@ -19,46 +19,12 @@ const logoDir = path.join(baseUploadDir, 'logos');
 ensureDirExists(logoDir);
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    try {
-      console.log('Logo upload attempt:', {
-        directory: logoDir,
-        fileInfo: {
-          fieldname: file.fieldname,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-        },
-      });
-
-      // Check if directory exists and is writable
-      if (!fs.existsSync(logoDir)) {
-        console.error('Logo directory does not exist:', logoDir);
-        return cb(new Error('Upload directory does not exist'), logoDir);
-      }
-
-      try {
-        fs.accessSync(logoDir, fs.constants.W_OK);
-      } catch (err) {
-        console.error('Logo directory is not writable:', logoDir, err);
-        return cb(new Error('Upload directory is not writable'), logoDir);
-      }
-
-      cb(null, logoDir);
-    } catch (error) {
-      console.error('Error in logo upload destination:', error);
-      cb(error as Error, logoDir);
-    }
+    cb(null, logoDir);
   },
   filename: (req, file, cb) => {
-    try {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const extension = path.extname(file.originalname);
-      const filename = 'logo-' + uniqueSuffix + extension;
-      console.log('Generated filename:', filename);
-      cb(null, filename);
-    } catch (error) {
-      console.error('Error in logo filename generation:', error);
-      cb(error as Error, '');
-    }
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const extension = path.extname(file.originalname);
+    cb(null, 'logo-' + uniqueSuffix + extension); // Prefix filename
   },
 });
 
@@ -96,28 +62,10 @@ const imageFileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback,
 ) => {
-  try {
-    console.log('Checking image file:', {
-      mimetype: file.mimetype,
-      originalname: file.originalname,
-      size: file.size,
-    });
-
-    if (!file.mimetype) {
-      console.error('No mimetype provided for file');
-      return cb(new ApiError(httpStatus.BAD_REQUEST, 'Invalid file format'));
-    }
-
-    if (file.mimetype.startsWith('image/')) {
-      console.log('Valid image file detected');
-      cb(null, true);
-    } else {
-      console.error('Invalid file type:', file.mimetype);
-      cb(new ApiError(httpStatus.BAD_REQUEST, 'Only image files are allowed!'));
-    }
-  } catch (error) {
-    console.error('Error in image file filter:', error);
-    cb(error as Error);
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new ApiError(httpStatus.BAD_REQUEST, 'Only image files are allowed!'));
   }
 };
 
