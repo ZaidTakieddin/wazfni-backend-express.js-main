@@ -77,6 +77,22 @@ async function main() {
   });
   console.log(`Created or found admin user with id: ${adminUser.id}`);
 
+  const adminProfile = await prisma.userProfile.upsert({
+    where: { userId: adminUser.id },
+    update: {
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      phone: adminPhoneNumber,
+    },
+    create: {
+      userId: adminUser.id,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      phone: adminPhoneNumber,
+    },
+  });
+  console.log(`Created or found admin profile with id: ${adminProfile.id}`);
+
   // 3. Seed Company for Admin User
   console.log(`Seeding company for admin user...`);
   const company = await prisma.company.upsert({
