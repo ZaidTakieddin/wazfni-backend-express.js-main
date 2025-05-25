@@ -69,10 +69,12 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  applications Application[] // User's applications
-  profile      UserProfile?
-  company      Company?
-  bookmarks    Bookmark[] // Add bookmarks relation
+  applications   Application[] // User's applications
+  profile        UserProfile?
+  company        Company?
+  bookmarks      Bookmark[] // Add bookmarks relation
+  categoryClicks CategoryClick[] // Many-to-many relation with categories
+  jobViewHistory JobViewHistory[] // Many-to-many relation with jobs
 }
 
 model UserProfile {
@@ -123,10 +125,11 @@ model Company {
 }
 
 model Category {
-  id   String  @id @default(cuid())
-  name String  @unique
-  icon String?
-  jobs Job[] // Relation to jobs (many-to-many)
+  id     String          @id @default(cuid())
+  name   String          @unique
+  icon   String?
+  jobs   Job[] // Relation to jobs (many-to-many)
+  clicks CategoryClick[] // Many-to-many relation with users
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,6 +156,7 @@ model Job {
 
   applications Application[] // Applications received for this job
   bookmarks    Bookmark[] // Add bookmarks relation
+  viewHistory  JobViewHistory[] // Many-to-many relation with users
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -228,4 +232,38 @@ model Bookmark {
   @@unique([userId, jobId]) // Ensure a user can only bookmark a job once
   @@index([userId])
   @@index([jobId])
+}
+
+// Modified model for tracking category clicks with many-to-many relation
+model CategoryClick {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  clickedAt     DateTime @default(now())
+  clickCount    Int      @default(1) // Track number of clicks
+  lastClickedAt DateTime @default(now()) // Track last click time
+
+  @@unique([userId, categoryId]) // Ensure one record per user-category pair
+  @@index([userId])
+  @@index([categoryId])
+  @@index([lastClickedAt]) // Index for sorting by last click
+}
+
+// Modified model for tracking job views with many-to-many relation
+model JobViewHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId        String
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  viewedAt     DateTime @default(now())
+  viewCount    Int      @default(1) // Track number of views
+  lastViewedAt DateTime @default(now()) // Track last view time
+
+  @@unique([userId, jobId]) // Ensure one record per user-job pair
+  @@index([userId])
+  @@index([jobId])
+  @@index([lastViewedAt]) // Index for sorting by last view
 }

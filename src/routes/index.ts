@@ -8,6 +8,8 @@ import workExperienceRoute from './workExperience.route';
 import educationCertificateRoute from './educationCertificate.route';
 import applicationRoute from './application.route'; // Import the new route
 import bookmarkRoute from './bookmark.route';
+import categoryClickRoutes from './categoryClick.routes';
+import jobViewHistoryRoutes from './jobViewHistory.routes';
 // Import other route modules here as they are created
 
 const router = express.Router();
@@ -54,6 +56,14 @@ const defaultRoutes: RouteConfig[] = [
   {
     path: '/bookmarks',
     route: bookmarkRoute,
+  },
+  {
+    path: '/category-clicks',
+    route: categoryClickRoutes,
+  },
+  {
+    path: '/job-views',
+    route: jobViewHistoryRoutes,
   },
 ];
 
