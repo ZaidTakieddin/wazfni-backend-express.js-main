@@ -4,7 +4,7 @@ import {
   getUserJobViews,
   getRecommendedJobs,
 } from '../controllers/jobViewHistory.controller';
-import auth from '@/middlewares/auth';
+import auth from '../middlewares/auth';
 
 const router = Router();
 

@@ -3,7 +3,7 @@ import {
   recordCategoryClick,
   getUserCategoryClicks,
 } from '../controllers/categoryClick.controller';
-import auth from '@/middlewares/auth';
+import auth from '../middlewares/auth';
 
 const router = Router();
 
