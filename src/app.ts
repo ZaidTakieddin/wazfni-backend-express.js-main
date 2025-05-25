@@ -22,7 +22,7 @@ app.use(helmet());
 
 // Enable CORS - adjust origins as needed for production
 app.use(cors());
-app.options('*', cors()); // Enable pre-flight requests for all routes - Temporarily commented out
+app.options('/{*any}', cors()); // Enable pre-flight requests for all routes - Temporarily commented out
 
 // Parse json request body
 app.use(express.json());
