@@ -2,7 +2,10 @@ import { Company, Prisma } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
-import { getRelativePath } from '../middlewares/upload';
+import {
+  getRelativePath,
+  deleteFileByRelativePath,
+} from '../middlewares/upload';
 
 // Explicit type for creation input (optional)
 export type CreateCompanyInput = Omit<
@@ -80,13 +83,28 @@ export const updateCompanyByUserId = async (
   updateBody: Omit<UpdateCompanyInput, 'logo'>,
   logoPath?: string | null, // Allow string or null
 ): Promise<Company> => {
-  // findUniqueOrThrow ensures company exists before attempting update
-  await prisma.company.findUniqueOrThrow({ where: { userId } }).catch(() => {
+  // Get the current company to check for existing logo
+  const currentCompany = await prisma.company.findUnique({
+    where: { userId },
+    select: { logo: true }, // Only select the logo field for efficiency
+  });
+
+  if (!currentCompany) {
     throw new ApiError(
       httpStatus.NOT_FOUND,
       'Company not found for this user, cannot update',
     );
-  });
+  }
+
+  // Handle logo file replacement
+  let shouldDeleteOldLogo = false;
+  let oldLogoPath: string | null = null;
+
+  if (logoPath && currentCompany.logo && currentCompany.logo !== logoPath) {
+    // New logo is being uploaded and there's an existing logo
+    shouldDeleteOldLogo = true;
+    oldLogoPath = currentCompany.logo;
+  }
 
   const relativeLogoPath = logoPath ? getRelativePath(logoPath) : logoPath; // Keep null as null
 
@@ -96,10 +114,24 @@ export const updateCompanyByUserId = async (
     ...(logoPath !== undefined && { logo: relativeLogoPath }),
   };
 
+  // Update the company in database
   const updatedCompany = await prisma.company.update({
     where: { userId },
     data: dataToUpdate,
   });
+
+  // Delete old logo file after successful database update
+  if (shouldDeleteOldLogo && oldLogoPath) {
+    const deleted = deleteFileByRelativePath(oldLogoPath);
+    if (deleted) {
+      console.log(`Successfully deleted old logo: ${oldLogoPath}`);
+    } else {
+      console.warn(
+        `Failed to delete old logo: ${oldLogoPath} (file may not exist)`,
+      );
+    }
+  }
+
   return updatedCompany;
 };
 

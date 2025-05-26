@@ -7,19 +7,53 @@ import httpStatus from 'http-status';
 // Define base upload directory relative to project root
 const baseUploadDir = path.resolve(__dirname, '../../uploads');
 
-// Function to ensure directory exists
+// Enhanced function to ensure directory exists with better error handling
 const ensureDirExists = (dirPath: string) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`Created directory: ${dirPath}`);
+    }
+  } catch (error) {
+    console.error(`Failed to create directory ${dirPath}:`, error);
+    throw new ApiError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      `Failed to create upload directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
+};
+
+// Utility function to safely delete a file
+export const deleteFile = (filePath: string): boolean => {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted file: ${filePath}`);
+      return true;
+    }
+    return false; // File didn't exist
+  } catch (error) {
+    console.error(`Failed to delete file ${filePath}:`, error);
+    return false;
+  }
+};
+
+// Utility function to delete file by relative path
+export const deleteFileByRelativePath = (relativePath: string): boolean => {
+  const absolutePath = path.resolve(__dirname, '../..', relativePath);
+  return deleteFile(absolutePath);
 };
 
 // Configuration for Logos (Images)
 const logoDir = path.join(baseUploadDir, 'logos');
-ensureDirExists(logoDir);
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, logoDir);
+    try {
+      ensureDirExists(logoDir);
+      cb(null, logoDir);
+    } catch (error) {
+      cb(error instanceof Error ? error : new Error('Unknown error'), logoDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -30,10 +64,17 @@ const logoStorage = multer.diskStorage({
 
 // Configuration for Avatars (Images)
 const avatarDir = path.join(baseUploadDir, 'avatars');
-ensureDirExists(avatarDir);
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, avatarDir);
+    try {
+      ensureDirExists(avatarDir);
+      cb(null, avatarDir);
+    } catch (error) {
+      cb(
+        error instanceof Error ? error : new Error('Unknown error'),
+        avatarDir,
+      );
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -44,10 +85,14 @@ const avatarStorage = multer.diskStorage({
 
 // Configuration for CVs (PDF, DOC, DOCX)
 const cvDir = path.join(baseUploadDir, 'cvs');
-ensureDirExists(cvDir);
 const cvStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, cvDir);
+    try {
+      ensureDirExists(cvDir);
+      cb(null, cvDir);
+    } catch (error) {
+      cb(error instanceof Error ? error : new Error('Unknown error'), cvDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -128,17 +173,24 @@ export const uploadProfileFiles = multer({
   storage: multer.diskStorage({
     // Need dynamic destination/filename
     destination: (req, file, cb) => {
-      let destDir;
-      if (file.fieldname === 'avatar') {
-        destDir = avatarDir;
-      } else if (file.fieldname === 'cv') {
-        destDir = cvDir;
-      } else {
-        // If unexpected field, maybe use a default or throw error
-        return cb(new Error('Unexpected field name'), baseUploadDir);
+      try {
+        let destDir;
+        if (file.fieldname === 'avatar') {
+          destDir = avatarDir;
+        } else if (file.fieldname === 'cv') {
+          destDir = cvDir;
+        } else {
+          // If unexpected field, maybe use a default or throw error
+          return cb(new Error('Unexpected field name'), baseUploadDir);
+        }
+        ensureDirExists(destDir);
+        cb(null, destDir);
+      } catch (error) {
+        cb(
+          error instanceof Error ? error : new Error('Unknown error'),
+          baseUploadDir,
+        );
       }
-      ensureDirExists(destDir);
-      cb(null, destDir);
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -169,3 +221,10 @@ export const getRelativePath = (absolutePath: string): string => {
     .relative(path.resolve(__dirname, '../..'), absolutePath)
     .replace(/\\/g, '/'); // Ensure forward slashes for consistency
 };
+
+// Initialize base upload directory on module load
+try {
+  ensureDirExists(baseUploadDir);
+} catch (error) {
+  console.error('Failed to initialize base upload directory:', error);
+}

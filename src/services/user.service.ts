@@ -1,7 +1,10 @@
 import { Prisma, User, UserProfile } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
-import { getRelativePath } from '../middlewares/upload'; // Import helper
+import {
+  getRelativePath,
+  deleteFileByRelativePath,
+} from '../middlewares/upload'; // Import helper
 import ApiError from '../utils/ApiError';
 
 // Type for the data coming from the validated request body for profile update
@@ -70,11 +73,19 @@ export const updateUserProfile = async (
   // Add file paths from controller
   filePaths: { cv?: string; avatar?: string } = {},
 ): Promise<UserProfile> => {
-  // Ensure the profile exists, or create it before updating
-  // This uses upsert for atomicity: find or create, then update.
-  // const profile = await getUserProfile(userId);
+  // Get current profile to check for existing files
+  const currentProfile = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { cv: true, avatar: true }, // Only select file fields for efficiency
+  });
 
   const { birthDate, ...restOfBody } = updateBody;
+
+  // Handle file replacements
+  let shouldDeleteOldCv = false;
+  let shouldDeleteOldAvatar = false;
+  let oldCvPath: string | null = null;
+  let oldAvatarPath: string | null = null;
 
   // Get relative paths if provided
   const relativeCvPath = filePaths.cv
@@ -83,6 +94,26 @@ export const updateUserProfile = async (
   const relativeAvatarPath = filePaths.avatar
     ? getRelativePath(filePaths.avatar)
     : undefined;
+
+  // Check if we need to delete old files
+  if (currentProfile) {
+    if (
+      relativeCvPath &&
+      currentProfile.cv &&
+      currentProfile.cv !== relativeCvPath
+    ) {
+      shouldDeleteOldCv = true;
+      oldCvPath = currentProfile.cv;
+    }
+    if (
+      relativeAvatarPath &&
+      currentProfile.avatar &&
+      currentProfile.avatar !== relativeAvatarPath
+    ) {
+      shouldDeleteOldAvatar = true;
+      oldAvatarPath = currentProfile.avatar;
+    }
+  }
 
   // Prepare data for Prisma, converting birthDate and adding file paths
   const dataForUpdate: Prisma.UserProfileUpdateInput = {
@@ -111,6 +142,29 @@ export const updateUserProfile = async (
       educationCertificates: { orderBy: { startDate: 'desc' } },
     },
   });
+
+  // Delete old files after successful database update
+  if (shouldDeleteOldCv && oldCvPath) {
+    const deleted = deleteFileByRelativePath(oldCvPath);
+    if (deleted) {
+      console.log(`Successfully deleted old CV: ${oldCvPath}`);
+    } else {
+      console.warn(
+        `Failed to delete old CV: ${oldCvPath} (file may not exist)`,
+      );
+    }
+  }
+
+  if (shouldDeleteOldAvatar && oldAvatarPath) {
+    const deleted = deleteFileByRelativePath(oldAvatarPath);
+    if (deleted) {
+      console.log(`Successfully deleted old avatar: ${oldAvatarPath}`);
+    } else {
+      console.warn(
+        `Failed to delete old avatar: ${oldAvatarPath} (file may not exist)`,
+      );
+    }
+  }
 
   return updatedProfile;
 };
