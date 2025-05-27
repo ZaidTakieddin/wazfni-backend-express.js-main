@@ -35,7 +35,12 @@ export const recordJobView = async (userId: string, jobId: string) => {
 
 export const getUserJobViews = async (userId: string) => {
   const jobViews = await prisma.jobViewHistory.findMany({
-    where: { userId },
+    where: {
+      userId,
+      job: {
+        isArchived: false,
+      },
+    },
     include: {
       job: {
         include: {
@@ -55,6 +60,7 @@ export const getUserJobViews = async (userId: string) => {
 export const getRecommendedJobs = async (userId: string) => {
   const recommendedJobs = await prisma.job.findMany({
     where: {
+      isArchived: false,
       categories: {
         some: {
           clicks: {
