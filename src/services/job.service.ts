@@ -108,7 +108,7 @@ export const getJobsByCompanyId = async (
       categories: true, // Include categories
       _count: {
         // Add count of applications
-        select: { applications: true },
+        select: { applications: true, viewHistory: true },
       },
     },
     orderBy: { createdAt: 'desc' }, // Example ordering
@@ -133,7 +133,7 @@ export const getArchivedJobsByCompanyId = async (
       categories: true, // Include categories
       _count: {
         // Add count of applications
-        select: { applications: true },
+        select: { applications: true, viewHistory: true },
       },
     },
     orderBy: { updatedAt: 'desc' }, // Order by when they were archived (updated)
