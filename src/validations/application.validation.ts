@@ -27,9 +27,8 @@ export const getApplicationSchema = z.object({
 });
 
 export const getMyApplicationsSchema = z.object({
-  params: z.object({
-    applicationId: z.string().cuid('Invalid Application ID'),
-  }),
+  // No params needed for /user/applications route
+  // Optional query parameters could be added here for filtering if needed
 });
 
 export const updateApplicationStatusSchema = z.object({
