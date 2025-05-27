@@ -46,6 +46,11 @@ export const getUserJobViews = async (userId: string) => {
         include: {
           company: true,
           categories: true,
+          bookmarks: {
+            where: {
+              userId,
+            },
+          },
         },
       },
     },
@@ -54,7 +59,14 @@ export const getUserJobViews = async (userId: string) => {
     },
   });
 
-  return jobViews;
+  return jobViews.map((jobView) => ({
+    ...jobView,
+    job: {
+      ...jobView.job,
+      isBookmarked: userId ? jobView.job.bookmarks.length > 0 : undefined,
+      bookmarks: undefined, // Remove the bookmarks array from response
+    },
+  }));
 };
 
 export const getRecommendedJobs = async (userId: string) => {
@@ -74,6 +86,11 @@ export const getRecommendedJobs = async (userId: string) => {
     include: {
       company: true,
       categories: true,
+      bookmarks: {
+        where: {
+          userId,
+        },
+      },
     },
     orderBy: {
       viewHistory: {
@@ -83,5 +100,9 @@ export const getRecommendedJobs = async (userId: string) => {
     take: 10,
   });
 
-  return recommendedJobs;
+  return recommendedJobs.map((job) => ({
+    ...job,
+    isBookmarked: userId ? job.bookmarks.length > 0 : undefined,
+    bookmarks: undefined, // Remove the bookmarks array from response
+  }));
 };
