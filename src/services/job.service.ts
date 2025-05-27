@@ -16,6 +16,7 @@ interface CreateJobInput
  */
 export const getJobs = async (userId?: string) => {
   const jobs = await prisma.job.findMany({
+    where: { isArchived: false },
     include: {
       company: true,
       categories: true,
@@ -90,14 +91,19 @@ export const createJob = async (
 /**
  * Get all jobs posted by a specific company.
  * @param companyId - The ID of the company.
+ * @param includeArchived - Whether to include archived jobs (default: false)
  * @returns A list of jobs.
  */
 export const getJobsByCompanyId = async (
   companyId: string,
+  includeArchived: boolean = false,
   // Adjust return type
 ): Promise<(Job & { _count?: { applications: number } })[]> => {
   const jobs = await prisma.job.findMany({
-    where: { companyId },
+    where: {
+      companyId,
+      ...(includeArchived ? {} : { isArchived: false }), // Exclude archived jobs unless explicitly requested
+    },
     include: {
       categories: true, // Include categories
       _count: {
@@ -108,6 +114,70 @@ export const getJobsByCompanyId = async (
     orderBy: { createdAt: 'desc' }, // Example ordering
   });
   return jobs;
+};
+
+/**
+ * Get all archived jobs posted by a specific company.
+ * @param companyId - The ID of the company.
+ * @returns A list of archived jobs.
+ */
+export const getArchivedJobsByCompanyId = async (
+  companyId: string,
+): Promise<(Job & { _count?: { applications: number } })[]> => {
+  const jobs = await prisma.job.findMany({
+    where: {
+      companyId,
+      isArchived: true, // Only get archived jobs
+    },
+    include: {
+      categories: true, // Include categories
+      _count: {
+        // Add count of applications
+        select: { applications: true },
+      },
+    },
+    orderBy: { updatedAt: 'desc' }, // Order by when they were archived (updated)
+  });
+  return jobs;
+};
+
+/**
+ * Archive or unarchive a job posting.
+ * @param jobId - The ID of the job to archive/unarchive.
+ * @param companyId - The ID of the company that owns the job (for verification).
+ * @param archive - Whether to archive (true) or unarchive (false) the job.
+ * @returns The updated job.
+ * @throws {ApiError} If the job is not found or doesn't belong to the company.
+ */
+export const archiveJob = async (
+  jobId: string,
+  companyId: string,
+  archive: boolean = true,
+): Promise<Job> => {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+  });
+
+  if (!job) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
+  }
+
+  if (job.companyId !== companyId) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      'Cannot modify job belonging to another company',
+    );
+  }
+
+  const updatedJob = await prisma.job.update({
+    where: { id: jobId },
+    data: {
+      isArchived: archive,
+    },
+    include: { categories: true }, // Include categories in the returned job
+  });
+
+  return updatedJob;
 };
 
 /**
@@ -359,6 +429,15 @@ export const searchAndFilterJobs = async (
   // Combine all filter conditions with AND
   if (filterConditions.length > 0) {
     where.AND = filterConditions;
+  }
+
+  // Always exclude archived jobs from search results
+  if (where.AND && Array.isArray(where.AND)) {
+    where.AND.push({ isArchived: false });
+  } else if (where.AND) {
+    where.AND = [where.AND as Prisma.JobWhereInput, { isArchived: false }];
+  } else {
+    where.isArchived = false;
   }
 
   const jobs = await prisma.job.findMany({

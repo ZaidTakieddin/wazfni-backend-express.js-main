@@ -43,8 +43,59 @@ export const getMyCompanyJobs = catchAsync(
       throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
 
     const companyId = await getCompanyIdFromUser(req.user.id);
-    const jobs = await jobService.getJobsByCompanyId(companyId);
+    const jobs = await jobService.getJobsByCompanyId(companyId); // This now excludes archived jobs by default
     res.send(jobs);
+  },
+);
+
+export const getMyCompanyArchivedJobs = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const archivedJobs = await jobService.getArchivedJobsByCompanyId(companyId);
+    res.send(archivedJobs);
+  },
+);
+
+export const archiveJobPost = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    // Add check for jobId param
+    const jobId = req.params.jobId;
+    if (typeof jobId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Job ID must be provided in URL parameters',
+      );
+    }
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const archivedJob = await jobService.archiveJob(jobId, companyId, true);
+    res.send(archivedJob);
+  },
+);
+
+export const unarchiveJobPost = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    // Add check for jobId param
+    const jobId = req.params.jobId;
+    if (typeof jobId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Job ID must be provided in URL parameters',
+      );
+    }
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const unarchivedJob = await jobService.archiveJob(jobId, companyId, false);
+    res.send(unarchivedJob);
   },
 );
 

@@ -22,6 +22,14 @@ router
   // User must be authenticated AND associated with a company to get their jobs
   .get(auth, authorize([], true), jobController.getMyCompanyJobs);
 
+// Route for getting archived jobs
+router.get(
+  '/company/archived',
+  auth,
+  authorize([], true),
+  jobController.getMyCompanyArchivedJobs,
+);
+
 // Define specific routes like /search BEFORE parameterized routes like /:jobId
 router.get('/search', jobController.searchJobs);
 
@@ -40,5 +48,20 @@ router
   )
   // User must be authenticated AND associated with a company to delete their job
   .delete(auth, authorize([], true), jobController.deleteJobPost);
+
+// Routes for archiving specific jobs
+router.patch(
+  '/:jobId/archive',
+  auth,
+  authorize([], true),
+  jobController.archiveJobPost,
+);
+
+router.patch(
+  '/:jobId/unarchive',
+  auth,
+  authorize([], true),
+  jobController.unarchiveJobPost,
+);
 
 export default router;

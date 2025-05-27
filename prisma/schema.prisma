@@ -153,6 +153,7 @@ model Job {
   description     String
   requirements    String
   questions       String[]
+  isArchived      Boolean         @default(false) // Add archive field
 
   applications Application[] // Applications received for this job
   bookmarks    Bookmark[] // Add bookmarks relation
