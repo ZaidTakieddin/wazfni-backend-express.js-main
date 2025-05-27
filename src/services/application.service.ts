@@ -255,6 +255,7 @@ export const getMyApplications = async (
       job: {
         include: {
           company: true,
+          categories: true,
         },
       },
     },
