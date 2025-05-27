@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApplicationStatus } from '@prisma/client';
 
 export const createApplicationSchema = z.object({
   params: z.object({
@@ -28,5 +29,16 @@ export const getApplicationSchema = z.object({
 export const getMyApplicationsSchema = z.object({
   params: z.object({
     applicationId: z.string().cuid('Invalid Application ID'),
+  }),
+});
+
+export const updateApplicationStatusSchema = z.object({
+  params: z.object({
+    applicationId: z.string().cuid('Invalid Application ID'),
+  }),
+  body: z.object({
+    status: z.nativeEnum(ApplicationStatus, {
+      message: 'Status must be PENDING, REJECTED, or ACCEPTED',
+    }),
   }),
 });

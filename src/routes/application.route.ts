@@ -8,6 +8,7 @@ import {
   getApplicationsSchema,
   getApplicationSchema,
   getMyApplicationsSchema,
+  updateApplicationStatusSchema,
 } from '../validations/application.validation'; // Specific import
 import * as applicationController from '../controllers/application.controller'; // Index export
 import { uploadCv } from '../middlewares/upload'; // Middleware for CV upload on apply
@@ -51,6 +52,13 @@ router.route('/user/applications').get(
   auth, // 1. Check authentication
   validate(getMyApplicationsSchema), // 2. Validate applicationId format
   applicationController.getMyApplications, // 2. Controller calls service
+);
+
+// Update application status (company evaluates application)
+router.route('/:applicationId/status').patch(
+  auth, // 1. Check authentication
+  validate(updateApplicationStatusSchema), // 2. Validate applicationId format and status
+  applicationController.updateApplicationStatus, // 3. Controller calls service
 );
 
 export default router;

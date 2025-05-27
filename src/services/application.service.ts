@@ -1,4 +1,11 @@
-import { Application, UserProfile, User } from '@prisma/client';
+import {
+  Application,
+  UserProfile,
+  User,
+  Prisma,
+  WorkType,
+  ApplicationStatus,
+} from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import { getRelativePath } from '../middlewares/upload';
@@ -254,4 +261,77 @@ export const getMyApplications = async (
   });
 
   return applications;
+};
+
+/**
+ * Update application status (evaluate application).
+ * @param companyUserId - The user ID of the company representative making the request.
+ * @param applicationId - The ID of the application to update.
+ * @param status - The new status (PENDING, REJECTED, ACCEPTED).
+ * @returns {Promise<Application>} The updated application.
+ * @throws {ApiError} If application not found or user lacks permission.
+ */
+export const updateApplicationStatus = async (
+  companyUserId: string,
+  applicationId: string,
+  status: ApplicationStatus,
+): Promise<Application> => {
+  // 1. Get the company associated with the requesting user
+  const company = await prisma.company.findUnique({
+    where: { userId: companyUserId },
+    select: { id: true },
+  });
+  if (!company) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      'User is not associated with a company',
+    );
+  }
+  const userCompanyId = company.id;
+
+  // 2. Fetch the application and verify job ownership
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: {
+      job: {
+        select: { companyId: true },
+      },
+    },
+  });
+
+  if (!application) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Application not found');
+  }
+
+  // 3. Verify the job belongs to the user's company
+  if (application.job.companyId !== userCompanyId) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      'You do not have permission to update this application',
+    );
+  }
+
+  // 4. Update the application status
+  const updatedApplication = await prisma.application.update({
+    where: { id: applicationId },
+    data: { status },
+    include: {
+      applicant: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+      job: {
+        select: {
+          id: true,
+          jobTitle: true,
+        },
+      },
+    },
+  });
+
+  return updatedApplication;
 };

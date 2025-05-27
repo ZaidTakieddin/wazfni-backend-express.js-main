@@ -106,4 +106,34 @@ export const getMyApplications = catchAsync(
   },
 );
 
+export const updateApplicationStatus = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+    }
+    const companyUserId = req.user.id;
+    const { applicationId } = req.params;
+    const { status } = req.body;
+
+    if (!applicationId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Application ID is required');
+    }
+
+    if (!status) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Status is required');
+    }
+
+    const updatedApplication = await applicationService.updateApplicationStatus(
+      companyUserId,
+      applicationId,
+      status,
+    );
+
+    res.send({
+      message: `Application status updated to ${status}`,
+      application: updatedApplication,
+    });
+  },
+);
+
 // TODO: Add controllers for updating application status (e.g., by company)
