@@ -1,4 +1,4 @@
-import { Job, Prisma, WorkType } from '@prisma/client';
+import { Job, Prisma, WorkType, SalaryType } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
@@ -48,6 +48,19 @@ export const createJob = async (
 ): Promise<Job> => {
   const { categoryIds, ...jobData } = jobBody;
 
+  // Normalize salary data based on salaryType
+  let normalizedJobData = { ...jobData };
+
+  if (jobData.salaryType === 'FIXED') {
+    // For FIXED salary, set maxSalary to same as minSalary
+    normalizedJobData.maxSalary = jobData.minSalary;
+  } else if (jobData.salaryType === 'NONE') {
+    // For NONE salary, set both to null
+    normalizedJobData.minSalary = null;
+    normalizedJobData.maxSalary = null;
+  }
+  // For RANGE, keep both values as provided
+
   // // Ensure company exists (optional check, DB constraint handles it mostly)
   // const companyExists = await prisma.company.findUnique({ where: { id: companyId } });
   // if (!companyExists) {
@@ -74,7 +87,7 @@ export const createJob = async (
 
   const job = await prisma.job.create({
     data: {
-      ...jobData,
+      ...normalizedJobData,
       company: {
         connect: { id: companyId }, // Connect to the company
       },
@@ -240,6 +253,19 @@ export const updateJob = async (
 ): Promise<Job> => {
   const { categoryIds, ...jobData } = updateBody;
 
+  // Normalize salary data based on salaryType if provided
+  let normalizedJobData = { ...jobData };
+
+  if (jobData.salaryType === 'FIXED' && jobData.minSalary !== undefined) {
+    // For FIXED salary, set maxSalary to same as minSalary
+    normalizedJobData.maxSalary = jobData.minSalary;
+  } else if (jobData.salaryType === 'NONE') {
+    // For NONE salary, set both to null
+    normalizedJobData.minSalary = null;
+    normalizedJobData.maxSalary = null;
+  }
+  // For RANGE, keep both values as provided
+
   const job = await prisma.job.findUnique({
     where: { id: jobId },
   });
@@ -276,7 +302,7 @@ export const updateJob = async (
   const updatedJob = await prisma.job.update({
     where: { id: jobId },
     data: {
-      ...jobData,
+      ...normalizedJobData,
       // If categoryIds is provided, completely replace the existing categories
       // Otherwise, leave categories untouched
       ...(categoryIds && {
