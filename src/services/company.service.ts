@@ -60,13 +60,15 @@ export const createCompany = async (
  * @returns
  * @throws {ApiError} If no company is found for the user.
  */
-export const getCompanyByUserId = async (userId: string): Promise<Company> => {
+export const getCompanyByUserId = async (
+  userId: string,
+): Promise<Company | null> => {
   const company = await prisma.company.findUnique({
     where: { userId },
   });
 
   if (!company) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Company not found for this user');
+    return null;
   }
   return company;
 };
