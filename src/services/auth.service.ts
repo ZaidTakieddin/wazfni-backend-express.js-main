@@ -122,3 +122,50 @@ export const logoutUser =
     );
     return;
   };
+
+/**
+ * Changes a user's password.
+ * @param userId - The ID of the user changing their password.
+ * @param currentPassword - The user's current password.
+ * @param newPassword - The new password to set.
+ * @returns A success message.
+ * @throws {ApiError} if the current password is incorrect or user is not found.
+ */
+export const changePassword = async (
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> => {
+  // Find the user
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user || !user.passwordHash) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  // Verify current password
+  const isCurrentPasswordMatch = await bcrypt.compare(
+    currentPassword,
+    user.passwordHash,
+  );
+
+  if (!isCurrentPasswordMatch) {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      'Current password is incorrect',
+    );
+  }
+
+  // Hash the new password
+  const hashedNewPassword = await hashPassword(newPassword);
+
+  // Update the password in the database
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: hashedNewPassword },
+  });
+
+  return { message: 'Password changed successfully' };
+};

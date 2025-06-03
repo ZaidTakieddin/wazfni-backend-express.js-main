@@ -2,7 +2,11 @@ import express from 'express';
 import * as authController from '../controllers/auth.controller';
 import auth from '../middlewares/auth';
 import validate from '../middlewares/validate';
-import { loginSchema, registerSchema } from '../validations/auth.validation';
+import {
+  loginSchema,
+  registerSchema,
+  changePasswordSchema,
+} from '../validations/auth.validation';
 
 const router = express.Router();
 
@@ -26,6 +30,15 @@ router.post('/login', validate(loginSchema), authController.login);
 //   }),
 //   authController.googleCallback,
 // );
+
+// === Password Management ===
+// Requires user to be authenticated to change password
+router.patch(
+  '/change-password',
+  auth,
+  validate(changePasswordSchema),
+  authController.changePassword,
+);
 
 // === Logout ===
 // Requires user to be authenticated to logout

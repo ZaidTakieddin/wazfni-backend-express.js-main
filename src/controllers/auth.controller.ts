@@ -58,4 +58,20 @@ export const logout = catchAsync(async (req: Request, res: Response) => {
   res.status(httpStatus.OK).send({ message: 'Logout successful' });
 });
 
+export const changePassword = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const result = await authService.changePassword(
+      req.user.id,
+      currentPassword,
+      newPassword,
+    );
+    res.status(httpStatus.OK).send(result);
+  },
+);
+
 // TODO: Add refreshTokens, forgotPassword, resetPassword controllers
