@@ -21,7 +21,7 @@ const envVarsSchema = z.object({
   // JWT_REFRESH_EXPIRATION_DAYS: z.coerce.number().default(30),
 
   // Google OAuth Configuration
-  //   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
   //   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
   //   GOOGLE_CALLBACK_URL: z
   //     .string()
@@ -57,7 +57,7 @@ const config = {
     // refreshExpirationDays: envVars.JWT_REFRESH_EXPIRATION_DAYS,
   },
   google: {
-    //     clientId: envVars.GOOGLE_CLIENT_ID,
+    clientId: envVars.GOOGLE_CLIENT_ID,
     //     clientSecret: envVars.GOOGLE_CLIENT_SECRET,
     //     callbackUrl: envVars.GOOGLE_CALLBACK_URL,
   },

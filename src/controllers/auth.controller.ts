@@ -74,4 +74,10 @@ export const changePassword = catchAsync(
   },
 );
 
+export const googleAuth = catchAsync(async (req: Request, res: Response) => {
+  const { idToken } = req.body;
+  const result = await authService.googleAuth(idToken);
+  res.status(httpStatus.OK).send(result);
+});
+
 // TODO: Add refreshTokens, forgotPassword, resetPassword controllers

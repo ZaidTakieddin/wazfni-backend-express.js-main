@@ -1,9 +1,14 @@
 import bcrypt from 'bcrypt';
 import httpStatus from 'http-status';
 import { User, Prisma } from '@prisma/client';
+import { OAuth2Client } from 'google-auth-library';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
 import { generateToken } from '../utils/jwt';
+import config from '../config/config';
+
+// Initialize Google OAuth2 client
+const googleClient = new OAuth2Client(config.google.clientId);
 
 /**
  * Hashes a password using bcrypt.
@@ -168,4 +173,122 @@ export const changePassword = async (
   });
 
   return { message: 'Password changed successfully' };
+};
+
+/**
+ * Authenticates a user using Google ID token (for React Native).
+ * @param idToken - The Google ID token from the client.
+ * @returns An object containing the user object (excluding passwordHash) and JWT token.
+ * @throws {ApiError} if the token is invalid or verification fails.
+ */
+export const googleAuth = async (
+  idToken: string,
+): Promise<{ user: Omit<User, 'passwordHash'>; token: string }> => {
+  try {
+    // Verify the Google ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: config.google.clientId,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Google token');
+    }
+
+    const {
+      sub: googleId,
+      email,
+      given_name: firstName,
+      family_name: lastName,
+    } = payload;
+
+    if (!email || !googleId) {
+      throw new ApiError(
+        httpStatus.UNAUTHORIZED,
+        'Google token missing required information',
+      );
+    }
+
+    // Check if user exists by Google ID
+    let user = await prisma.user.findUnique({
+      where: { googleId },
+    });
+
+    if (user) {
+      // Update lastLogin timestamp asynchronously
+      prisma.user
+        .update({
+          where: { id: user.id },
+          data: { lastLogin: new Date() },
+        })
+        .catch((err) => {
+          console.error(
+            `Failed to update lastLogin for user ${user?.id}:`,
+            err,
+          );
+        });
+
+      const token = generateToken(user.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _, ...userWithoutPassword } = user;
+      return { user: userWithoutPassword, token };
+    }
+
+    // Check if user exists by email
+    user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user) {
+      // Link Google ID to existing account
+      const updatedUser = await prisma.user.update({
+        where: { email },
+        data: {
+          googleId,
+          isVerified: true,
+          firstName: user!.firstName || firstName || null,
+          lastName: user!.lastName || lastName || null,
+          lastLogin: new Date(),
+        },
+      });
+
+      const token = generateToken(updatedUser.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _, ...userWithoutPassword } = updatedUser;
+      return { user: userWithoutPassword, token };
+    }
+
+    // Create new user
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        googleId,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        isVerified: true,
+        lastLogin: new Date(),
+      },
+    });
+
+    // Create user profile
+    await prisma.userProfile.create({
+      data: {
+        userId: newUser.id,
+        firstName: firstName || null,
+        lastName: lastName || null,
+      },
+    });
+
+    const token = generateToken(newUser.id);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    return { user: userWithoutPassword, token };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    console.error('Google authentication error:', error);
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Google authentication failed');
+  }
 };

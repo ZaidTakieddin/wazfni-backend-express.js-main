@@ -31,3 +31,9 @@ export const changePasswordSchema = z.object({
       path: ['confirmPassword'],
     }),
 });
+
+export const googleAuthSchema = z.object({
+  body: z.object({
+    idToken: z.string().min(1, 'Google ID token is required'),
+  }),
+});
