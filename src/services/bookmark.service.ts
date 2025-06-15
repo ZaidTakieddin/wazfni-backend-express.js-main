@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, ApprovalStatus } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
@@ -17,12 +17,29 @@ export const bookmarkJob = async (
   if (!jobId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
   }
-  // Check if job exists
+  // Check if job exists and is approved
   const job = await prisma.job.findUnique({
     where: { id: jobId },
+    include: {
+      company: {
+        select: { approvalStatus: true },
+      },
+    },
   });
+
   if (!job) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
+  }
+
+  // Only allow bookmarking approved jobs from approved companies
+  if (
+    job.approvalStatus !== ApprovalStatus.APPROVED ||
+    job.company.approvalStatus !== ApprovalStatus.APPROVED
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Cannot bookmark unapproved job',
+    );
   }
 
   // Create bookmark
@@ -93,7 +110,15 @@ export const unbookmarkJob = async (
  */
 export const getBookmarkedJobs = async (userId: string) => {
   const bookmarks = await prisma.bookmark.findMany({
-    where: { userId },
+    where: {
+      userId,
+      job: {
+        approvalStatus: ApprovalStatus.APPROVED,
+        company: {
+          approvalStatus: ApprovalStatus.APPROVED,
+        },
+      },
+    },
     include: {
       job: {
         include: {
@@ -103,7 +128,11 @@ export const getBookmarkedJobs = async (userId: string) => {
               logo: true,
             },
           },
-          categories: true,
+          subCategories: {
+            include: {
+              category: true,
+            },
+          },
         },
       },
     },

@@ -59,6 +59,39 @@ export const getMyCompanyArchivedJobs = catchAsync(
   },
 );
 
+export const getMyCompanyPendingJobs = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const pendingJobs = await jobService.getPendingJobsByCompanyId(companyId);
+    res.send(pendingJobs);
+  },
+);
+
+export const getMyCompanyApprovedJobs = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const approvedJobs = await jobService.getApprovedJobsByCompanyId(companyId);
+    res.send(approvedJobs);
+  },
+);
+
+export const getMyCompanyRejectedJobs = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.user)
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
+
+    const companyId = await getCompanyIdFromUser(req.user.id);
+    const rejectedJobs = await jobService.getRejectedJobsByCompanyId(companyId);
+    res.send(rejectedJobs);
+  },
+);
+
 export const archiveJobPost = catchAsync(
   async (req: Request, res: Response) => {
     if (!req.user)
@@ -144,12 +177,14 @@ export const deleteJobPost = catchAsync(async (req: Request, res: Response) => {
 
 // Public search endpoint
 export const searchJobs = catchAsync(async (req: Request, res: Response) => {
-  const { title, city, category, companyName, workType } = req.query;
+  const { searchTerm, title, city, subCategory, companyName, workType } =
+    req.query;
 
   const searchOptions = {
+    searchTerm: searchTerm as string | undefined,
     title: title as string | undefined,
     city: city as string | undefined,
-    category: category as string | undefined,
+    subCategory: subCategory as string | undefined,
     companyName: companyName as string | undefined,
     workType: workType as string | undefined,
   };

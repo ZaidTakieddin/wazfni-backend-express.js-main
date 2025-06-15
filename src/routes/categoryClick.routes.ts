@@ -7,10 +7,10 @@ import auth from '../middlewares/auth';
 
 const router = Router();
 
-// Record a category click
-router.post('/:categoryId', auth, recordCategoryClick);
+// Record a subcategory click
+router.post('/:subCategoryId', auth, recordCategoryClick);
 
-// Get user's category clicks
+// Get user's category clicks (returns subcategory clicks with parent category info)
 router.get('/my-clicks', auth, getUserCategoryClicks);
 
 export default router;

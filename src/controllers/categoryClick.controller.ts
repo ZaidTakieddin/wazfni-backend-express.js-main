@@ -10,16 +10,16 @@ export const recordCategoryClick = catchAsync(
       throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
     }
 
-    const { categoryId } = req.params;
-    if (!categoryId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Category ID is required');
+    const { subCategoryId } = req.params;
+    if (!subCategoryId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'SubCategory ID is required');
     }
 
     const userId = req.user.id;
 
     const categoryClick = await categoryClickService.recordCategoryClick(
       userId,
-      categoryId,
+      subCategoryId,
     );
 
     res.status(200).json({
@@ -36,6 +36,7 @@ export const getUserCategoryClicks = catchAsync(
     }
 
     const userId = req.user.id;
+
     const categoryClicks =
       await categoryClickService.getUserCategoryClicks(userId);
 

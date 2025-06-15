@@ -10,6 +10,8 @@ import applicationRoute from './application.route'; // Import the new route
 import bookmarkRoute from './bookmark.route';
 import categoryClickRoutes from './categoryClick.routes';
 import jobViewHistoryRoutes from './jobViewHistory.routes';
+import approvalRoutes from './approval.route'; // Import approval routes
+import fcmRoutes from './fcm.route'; // Import FCM routes
 // Import other route modules here as they are created
 
 const router = express.Router();
@@ -64,6 +66,14 @@ const defaultRoutes: RouteConfig[] = [
   {
     path: '/job-views',
     route: jobViewHistoryRoutes,
+  },
+  {
+    path: '/admin/approval', // Mount approval routes under /admin/approval
+    route: approvalRoutes,
+  },
+  {
+    path: '/fcm', // Mount FCM routes under /fcm
+    route: fcmRoutes,
   },
 ];
 

@@ -1,12 +1,22 @@
-import { Job, Prisma, WorkType, SalaryType } from '@prisma/client';
+import {
+  Job,
+  Prisma,
+  WorkType,
+  SalaryType,
+  ApprovalStatus,
+} from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
+import {
+  NotificationService,
+  NotificationTemplates,
+} from './notification.service';
 
 // Interface for job creation input from the controller/validation
 interface CreateJobInput
-  extends Omit<Prisma.JobCreateInput, 'company' | 'categories'> {
-  categoryIds: string[];
+  extends Omit<Prisma.JobCreateInput, 'company' | 'subCategories'> {
+  subCategoryIds: string[];
 }
 
 /**
@@ -16,10 +26,20 @@ interface CreateJobInput
  */
 export const getJobs = async (userId?: string) => {
   const jobs = await prisma.job.findMany({
-    where: { isArchived: false },
+    where: {
+      isArchived: false,
+      approvalStatus: ApprovalStatus.APPROVED,
+      company: {
+        approvalStatus: ApprovalStatus.APPROVED,
+      },
+    },
     include: {
       company: true,
-      categories: true,
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
       bookmarks: userId
         ? {
             where: { userId },
@@ -39,14 +59,31 @@ export const getJobs = async (userId?: string) => {
 /**
  * Create a job posting for a specific company.
  * @param companyId - The ID of the company posting the job.
- * @param jobBody - Contains job details including categoryIds and contractType.
+ * @param jobBody - Contains job details including subCategoryIds and contractType.
  * @returns The created job.
  */
 export const createJob = async (
   companyId: string,
   jobBody: CreateJobInput,
 ): Promise<Job> => {
-  const { categoryIds, ...jobData } = jobBody;
+  // First, verify the company is approved
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { approvalStatus: true, name: true },
+  });
+
+  if (!company) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Company not found');
+  }
+
+  if (company.approvalStatus !== ApprovalStatus.APPROVED) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      'Only approved companies can create job postings. Please wait for admin approval.',
+    );
+  }
+
+  const { subCategoryIds, ...jobData } = jobBody;
 
   // Normalize salary data based on salaryType
   let normalizedJobData = { ...jobData };
@@ -61,26 +98,20 @@ export const createJob = async (
   }
   // For RANGE, keep both values as provided
 
-  // // Ensure company exists (optional check, DB constraint handles it mostly)
-  // const companyExists = await prisma.company.findUnique({ where: { id: companyId } });
-  // if (!companyExists) {
-  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Company not found');
-  // }
-
-  // Validate category IDs before proceeding
-  if (categoryIds && categoryIds.length > 0) {
-    const uniqueCategoryIds = [...new Set(categoryIds)]; // Ensure unique IDs
-    const existingCategoriesCount = await prisma.category.count({
+  // Validate subcategory IDs before proceeding
+  if (subCategoryIds && subCategoryIds.length > 0) {
+    const uniqueSubCategoryIds = [...new Set(subCategoryIds)]; // Ensure unique IDs
+    const existingSubCategoriesCount = await prisma.subCategory.count({
       where: {
         id: {
-          in: uniqueCategoryIds,
+          in: uniqueSubCategoryIds,
         },
       },
     });
-    if (existingCategoriesCount !== uniqueCategoryIds.length) {
+    if (existingSubCategoriesCount !== uniqueSubCategoryIds.length) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        'One or more provided category IDs are invalid',
+        'One or more provided subcategory IDs are invalid',
       );
     }
   }
@@ -91,13 +122,34 @@ export const createJob = async (
       company: {
         connect: { id: companyId }, // Connect to the company
       },
-      categories: {
-        // Connect categories by their IDs
-        connect: categoryIds.map((id) => ({ id })),
+      subCategories: {
+        // Connect subcategories by their IDs
+        connect: subCategoryIds.map((id) => ({ id })),
       },
+      // Job starts in PENDING status for admin approval
+      approvalStatus: ApprovalStatus.PENDING,
     },
-    include: { categories: true }, // Include categories in the returned job
+    include: {
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
+    }, // Include subcategories with their parent categories in the returned job
   });
+
+  // Send notification to admins about new job for review
+  try {
+    const notification = NotificationTemplates.newJobForReview(
+      job.jobTitle,
+      company.name || 'شركة غير محددة',
+    );
+    await NotificationService.sendToAdmins(notification);
+  } catch (error) {
+    console.error('Failed to send admin notification for new job:', error);
+    // Don't throw error, just log it as notification failure shouldn't break job creation
+  }
+
   return job;
 };
 
@@ -110,7 +162,6 @@ export const createJob = async (
 export const getJobsByCompanyId = async (
   companyId: string,
   includeArchived: boolean = false,
-  // Adjust return type
 ): Promise<(Job & { _count?: { applications: number } })[]> => {
   const jobs = await prisma.job.findMany({
     where: {
@@ -118,7 +169,11 @@ export const getJobsByCompanyId = async (
       ...(includeArchived ? {} : { isArchived: false }), // Exclude archived jobs unless explicitly requested
     },
     include: {
-      categories: true, // Include categories
+      subCategories: {
+        include: {
+          category: true,
+        },
+      }, // Include subcategories with parent categories
       _count: {
         // Add count of applications
         select: { applications: true, viewHistory: true },
@@ -127,6 +182,80 @@ export const getJobsByCompanyId = async (
     orderBy: { createdAt: 'desc' }, // Example ordering
   });
   return jobs;
+};
+
+/**
+ * Get jobs by company ID and approval status
+ * @param companyId - The ID of the company
+ * @param approvalStatus - The approval status to filter by
+ * @param includeArchived - Whether to include archived jobs (default: false)
+ * @returns A list of jobs with the specified approval status
+ */
+export const getJobsByCompanyIdAndStatus = async (
+  companyId: string,
+  approvalStatus: ApprovalStatus,
+  includeArchived: boolean = false,
+): Promise<
+  (Job & { _count?: { applications: number; viewHistory: number } })[]
+> => {
+  const jobs = await prisma.job.findMany({
+    where: {
+      companyId,
+      approvalStatus,
+      ...(includeArchived ? {} : { isArchived: false }),
+    },
+    include: {
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
+      _count: {
+        select: { applications: true, viewHistory: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return jobs;
+};
+
+/**
+ * Get pending jobs for a specific company
+ * @param companyId - The ID of the company
+ * @returns A list of pending jobs
+ */
+export const getPendingJobsByCompanyId = async (
+  companyId: string,
+): Promise<
+  (Job & { _count?: { applications: number; viewHistory: number } })[]
+> => {
+  return getJobsByCompanyIdAndStatus(companyId, ApprovalStatus.PENDING);
+};
+
+/**
+ * Get approved jobs for a specific company
+ * @param companyId - The ID of the company
+ * @returns A list of approved jobs
+ */
+export const getApprovedJobsByCompanyId = async (
+  companyId: string,
+): Promise<
+  (Job & { _count?: { applications: number; viewHistory: number } })[]
+> => {
+  return getJobsByCompanyIdAndStatus(companyId, ApprovalStatus.APPROVED);
+};
+
+/**
+ * Get rejected jobs for a specific company
+ * @param companyId - The ID of the company
+ * @returns A list of rejected jobs
+ */
+export const getRejectedJobsByCompanyId = async (
+  companyId: string,
+): Promise<
+  (Job & { _count?: { applications: number; viewHistory: number } })[]
+> => {
+  return getJobsByCompanyIdAndStatus(companyId, ApprovalStatus.REJECTED);
 };
 
 /**
@@ -143,7 +272,11 @@ export const getArchivedJobsByCompanyId = async (
       isArchived: true, // Only get archived jobs
     },
     include: {
-      categories: true, // Include categories
+      subCategories: {
+        include: {
+          category: true,
+        },
+      }, // Include subcategories with parent categories
       _count: {
         // Add count of applications
         select: { applications: true, viewHistory: true },
@@ -187,7 +320,13 @@ export const archiveJob = async (
     data: {
       isArchived: archive,
     },
-    include: { categories: true }, // Include categories in the returned job
+    include: {
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
+    }, // Include subcategories with parent categories in the returned job
   });
 
   return updatedJob;
@@ -208,7 +347,11 @@ export const getJobById = async (jobId?: string, userId?: string) => {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     include: {
-      categories: true,
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
       company: true,
       _count: {
         select: { applications: true },
@@ -226,6 +369,14 @@ export const getJobById = async (jobId?: string, userId?: string) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
   }
 
+  // For public access, only show approved jobs from approved companies
+  if (
+    job.approvalStatus !== ApprovalStatus.APPROVED ||
+    job.company.approvalStatus !== ApprovalStatus.APPROVED
+  ) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
+  }
+
   return {
     ...job,
     isBookmarked: userId ? job.bookmarks.length > 0 : undefined,
@@ -234,15 +385,15 @@ export const getJobById = async (jobId?: string, userId?: string) => {
 };
 
 // Interface for job update input from the controller/validation
-interface UpdateJobInput extends Omit<Prisma.JobUpdateInput, 'categories'> {
-  categoryIds?: string[];
+interface UpdateJobInput extends Omit<Prisma.JobUpdateInput, 'subCategories'> {
+  subCategoryIds?: string[];
 }
 
 /**
  * Update a job posting.
  * @param jobId - The ID of the job to update.
  * @param companyId - The ID of the company that owns the job (for verification).
- * @param updateBody - Contains fields to update and optional categoryIds array.
+ * @param updateBody - Contains fields to update and optional subCategoryIds array.
  * @returns The updated job.
  * @throws {ApiError} If the job is not found or doesn't belong to the company.
  */
@@ -251,7 +402,7 @@ export const updateJob = async (
   companyId: string,
   updateBody: UpdateJobInput,
 ): Promise<Job> => {
-  const { categoryIds, ...jobData } = updateBody;
+  const { subCategoryIds, ...jobData } = updateBody;
 
   // Normalize salary data based on salaryType if provided
   let normalizedJobData = { ...jobData };
@@ -281,20 +432,20 @@ export const updateJob = async (
     );
   }
 
-  // Validate category IDs if provided
-  if (categoryIds && categoryIds.length > 0) {
-    const uniqueCategoryIds = [...new Set(categoryIds)]; // Ensure unique IDs
-    const existingCategoriesCount = await prisma.category.count({
+  // Validate subcategory IDs if provided
+  if (subCategoryIds && subCategoryIds.length > 0) {
+    const uniqueSubCategoryIds = [...new Set(subCategoryIds)]; // Ensure unique IDs
+    const existingSubCategoriesCount = await prisma.subCategory.count({
       where: {
         id: {
-          in: uniqueCategoryIds,
+          in: uniqueSubCategoryIds,
         },
       },
     });
-    if (existingCategoriesCount !== uniqueCategoryIds.length) {
+    if (existingSubCategoriesCount !== uniqueSubCategoryIds.length) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        'One or more provided category IDs are invalid',
+        'One or more provided subcategory IDs are invalid',
       );
     }
   }
@@ -303,15 +454,21 @@ export const updateJob = async (
     where: { id: jobId },
     data: {
       ...normalizedJobData,
-      // If categoryIds is provided, completely replace the existing categories
-      // Otherwise, leave categories untouched
-      ...(categoryIds && {
-        categories: {
-          set: categoryIds.map((id) => ({ id })),
+      // If subCategoryIds is provided, completely replace the existing subcategories
+      // Otherwise, leave subcategories untouched
+      ...(subCategoryIds && {
+        subCategories: {
+          set: subCategoryIds.map((id) => ({ id })),
         },
       }),
     },
-    include: { categories: true }, // Include categories in the returned job
+    include: {
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
+    }, // Include subcategories with parent categories in the returned job
   });
   return updatedJob;
 };
@@ -349,7 +506,7 @@ interface SearchOptions {
   searchTerm?: string;
   title?: string;
   city?: string;
-  category?: string; // Assuming filtering by category name for simplicity
+  subCategory?: string; // Filtering by subcategory name
   companyName?: string;
   workType?: string;
 }
@@ -361,71 +518,67 @@ interface SearchOptions {
  */
 export const searchAndFilterJobs = async (
   options: SearchOptions,
-  // Adjust return type
-): Promise<(Job & { _count?: { applications: number } })[]> => {
-  const { title, city, category, companyName, workType } = options;
+): Promise<Job[]> => {
+  const { searchTerm, title, city, subCategory, companyName, workType } =
+    options;
 
-  // Check if any search or filter criteria were actually provided
-  // If not, return an empty array immediately
-  const hasCriteria = title || city || category || companyName || workType;
-  if (!hasCriteria) {
-    return [];
-  }
+  // Build the where clause dynamically
+  let where: Prisma.JobWhereInput = {};
+  let filterConditions: Prisma.JobWhereInput[] = [];
 
-  const where: Prisma.JobWhereInput = {};
-  const filterConditions: Prisma.JobWhereInput[] = [];
-
-  // --- Search Logic ---
-  const searchConditions: Prisma.JobWhereInput[] = [];
-
-  // Specific title search (can be combined with general search or used alone)
-  if (title) {
-    searchConditions.push({
-      jobTitle: {
-        contains: title,
-        mode: 'insensitive',
-      },
+  // Text search across multiple fields
+  if (searchTerm) {
+    filterConditions.push({
+      OR: [
+        { jobTitle: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+        { requirements: { contains: searchTerm, mode: 'insensitive' } },
+        {
+          company: {
+            name: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+      ],
     });
   }
 
-  // Combine search conditions with OR
-  if (searchConditions.length > 0) {
-    filterConditions.push({ OR: searchConditions });
+  // Filter by job title
+  if (title) {
+    filterConditions.push({
+      jobTitle: { contains: title, mode: 'insensitive' },
+    });
   }
 
-  // --- Filter Logic ---
+  // Filter by company location (city)
   if (city) {
     filterConditions.push({
       company: {
-        city: {
-          contains: city,
-          mode: 'insensitive',
-        },
+        city: { contains: city, mode: 'insensitive' },
       },
     });
   }
-  if (category) {
+
+  // Filter by subcategory name
+  if (subCategory) {
     filterConditions.push({
-      categories: {
+      subCategories: {
         some: {
-          name: {
-            contains: category,
-            mode: 'insensitive',
-          },
+          name: { contains: subCategory, mode: 'insensitive' },
         },
       },
     });
   }
+
+  // Filter by company name
   if (companyName) {
     filterConditions.push({
       company: {
-        name: {
-          contains: companyName,
-          mode: 'insensitive',
-        },
+        name: { contains: companyName, mode: 'insensitive' },
       },
     });
   }
+
+  // Filter by work type
   if (workType) {
     // Split the workType string into an array and handle multiple values
     const workTypeValues = workType
@@ -457,19 +610,29 @@ export const searchAndFilterJobs = async (
     where.AND = filterConditions;
   }
 
-  // Always exclude archived jobs from search results
+  // Always exclude archived jobs and only show approved jobs from approved companies
+  const baseConditions = [
+    { isArchived: false },
+    { approvalStatus: ApprovalStatus.APPROVED },
+    { company: { approvalStatus: ApprovalStatus.APPROVED } },
+  ];
+
   if (where.AND && Array.isArray(where.AND)) {
-    where.AND.push({ isArchived: false });
+    where.AND.push(...baseConditions);
   } else if (where.AND) {
-    where.AND = [where.AND as Prisma.JobWhereInput, { isArchived: false }];
+    where.AND = [where.AND as Prisma.JobWhereInput, ...baseConditions];
   } else {
-    where.isArchived = false;
+    where.AND = baseConditions;
   }
 
   const jobs = await prisma.job.findMany({
     where,
     include: {
-      categories: true, // Include categories
+      subCategories: {
+        include: {
+          category: true,
+        },
+      }, // Include subcategories with parent categories
       company: true, // Include company details
       _count: {
         // Add count of applications

@@ -67,6 +67,12 @@ enum SalaryType {
   NONE
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -78,8 +84,12 @@ model User {
   lastName     String?
   phoneNumber  String?
   googleId     String?   @unique // Add this field
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+
+  // Firebase Cloud Messaging tokens for push notifications
+  fcmTokens String[] // Array to support multiple devices
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   applications   Application[] // User's applications
   profile        UserProfile?
@@ -130,6 +140,13 @@ model Company {
   commercial_register String?
   tax_number          String?
 
+  // Approval system fields
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedAt      DateTime?
+  approvedBy      String? // Admin user ID who approved/rejected
+  rejectionReason String? // Reason for rejection
+  reviewedAt      DateTime? // When the admin reviewed the company
+
   jobs Job[] // Relation to jobs (one-to-many)
 
   createdAt DateTime @default(now())
@@ -137,14 +154,29 @@ model Company {
 }
 
 model Category {
-  id     String          @id @default(cuid())
-  name   String          @unique
-  icon   String?
-  jobs   Job[] // Relation to jobs (many-to-many)
+  id            String        @id @default(cuid())
+  name          String        @unique
+  icon          String?
+  subCategories SubCategory[] // One-to-many relation with subcategories
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubCategory {
+  id         String   @id @default(cuid())
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  jobs   Job[]           @relation("JobSubCategories") // Relation to jobs (many-to-many)
   clicks CategoryClick[] // Many-to-many relation with users
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([name, categoryId]) // Ensure unique subcategory names within a category
+  @@index([categoryId])
 }
 
 model Job {
@@ -153,7 +185,7 @@ model Job {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   jobTitle        String
-  categories      Category[]
+  subCategories   SubCategory[]   @relation("JobSubCategories")
   workType        WorkType
   contractType    ContractType
   experienceLevel ExperienceLevel
@@ -167,6 +199,13 @@ model Job {
   questions       String[]
   isArchived      Boolean         @default(false) // Add archive field
   salaryType      SalaryType      @default(NONE)
+
+  // Approval system fields
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedAt      DateTime?
+  approvedBy      String? // Admin user ID who approved/rejected
+  rejectionReason String? // Reason for rejection
+  reviewedAt      DateTime? // When the admin reviewed the job
 
   applications Application[] // Applications received for this job
   bookmarks    Bookmark[] // Add bookmarks relation
@@ -250,18 +289,18 @@ model Bookmark {
 
 // Modified model for tracking category clicks with many-to-many relation
 model CategoryClick {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId    String
-  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  clickedAt     DateTime @default(now())
-  clickCount    Int      @default(1) // Track number of clicks
-  lastClickedAt DateTime @default(now()) // Track last click time
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subCategoryId String
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  clickedAt     DateTime    @default(now())
+  clickCount    Int         @default(1) // Track number of clicks
+  lastClickedAt DateTime    @default(now()) // Track last click time
 
-  @@unique([userId, categoryId]) // Ensure one record per user-category pair
+  @@unique([userId, subCategoryId]) // Ensure one record per user-subcategory pair
   @@index([userId])
-  @@index([categoryId])
+  @@index([subCategoryId])
   @@index([lastClickedAt]) // Index for sorting by last click
 }
 

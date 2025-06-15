@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ApprovalStatus } from '@prisma/client';
 import ApiError from '../utils/ApiError';
 import httpStatus from 'http-status';
 
@@ -7,6 +7,31 @@ const prisma = new PrismaClient();
 export const recordJobView = async (userId: string, jobId: string) => {
   if (!jobId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
+  }
+
+  // Verify the job exists and is approved before recording view
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      company: {
+        select: { approvalStatus: true },
+      },
+    },
+  });
+
+  if (!job) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
+  }
+
+  // Only track views for approved jobs from approved companies
+  if (
+    job.approvalStatus !== ApprovalStatus.APPROVED ||
+    job.company.approvalStatus !== ApprovalStatus.APPROVED
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Cannot track view for unapproved job',
+    );
   }
 
   const jobView = await prisma.jobViewHistory.upsert({
@@ -39,13 +64,21 @@ export const getUserJobViews = async (userId: string) => {
       userId,
       job: {
         isArchived: false,
+        approvalStatus: ApprovalStatus.APPROVED,
+        company: {
+          approvalStatus: ApprovalStatus.APPROVED,
+        },
       },
     },
     include: {
       job: {
         include: {
           company: true,
-          categories: true,
+          subCategories: {
+            include: {
+              category: true,
+            },
+          },
           bookmarks: {
             where: {
               userId,
@@ -73,7 +106,11 @@ export const getRecommendedJobs = async (userId: string) => {
   const recommendedJobs = await prisma.job.findMany({
     where: {
       isArchived: false,
-      categories: {
+      approvalStatus: ApprovalStatus.APPROVED,
+      company: {
+        approvalStatus: ApprovalStatus.APPROVED,
+      },
+      subCategories: {
         some: {
           clicks: {
             some: {
@@ -85,7 +122,11 @@ export const getRecommendedJobs = async (userId: string) => {
     },
     include: {
       company: true,
-      categories: true,
+      subCategories: {
+        include: {
+          category: true,
+        },
+      },
       bookmarks: {
         where: {
           userId,

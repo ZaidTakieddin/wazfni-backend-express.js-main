@@ -30,15 +30,41 @@ router.get(
   jobController.getMyCompanyArchivedJobs,
 );
 
+// Routes for getting jobs by approval status
+router.get(
+  '/company/pending',
+  auth,
+  authorize([], true),
+  jobController.getMyCompanyPendingJobs,
+);
+
+router.get(
+  '/company/approved',
+  auth,
+  authorize([], true),
+  jobController.getMyCompanyApprovedJobs,
+);
+
+router.get(
+  '/company/rejected',
+  auth,
+  authorize([], true),
+  jobController.getMyCompanyRejectedJobs,
+);
+
 // Define specific routes like /search BEFORE parameterized routes like /:jobId
-router.get('/search', jobController.searchJobs);
+router.get(
+  '/search',
+  validate(jobValidation.searchJobsSchema),
+  jobController.searchJobs,
+);
 
 // Routes for specific jobs
 router
   .route('/:jobId')
   // Get a single job (public? or require auth?)
   // Let's make it public for now, add auth/authorize if needed
-  .get(auth, jobController.getJobPost)
+  .get(auth, validate(jobValidation.getJobSchema), jobController.getJobPost)
   // User must be authenticated AND associated with a company to update their job
   .patch(
     auth,
@@ -47,13 +73,19 @@ router
     jobController.updateJobPost,
   )
   // User must be authenticated AND associated with a company to delete their job
-  .delete(auth, authorize([], true), jobController.deleteJobPost);
+  .delete(
+    auth,
+    authorize([], true),
+    validate(jobValidation.getJobSchema),
+    jobController.deleteJobPost,
+  );
 
 // Routes for archiving specific jobs
 router.patch(
   '/:jobId/archive',
   auth,
   authorize([], true),
+  validate(jobValidation.archiveJobSchema),
   jobController.archiveJobPost,
 );
 
@@ -61,6 +93,7 @@ router.patch(
   '/:jobId/unarchive',
   auth,
   authorize([], true),
+  validate(jobValidation.archiveJobSchema),
   jobController.unarchiveJobPost,
 );
 

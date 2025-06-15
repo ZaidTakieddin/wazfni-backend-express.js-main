@@ -6,6 +6,10 @@ import {
   getRelativePath,
   deleteFileByRelativePath,
 } from '../middlewares/upload';
+import {
+  NotificationService,
+  NotificationTemplates,
+} from './notification.service';
 
 // Explicit type for creation input (optional)
 export type CreateCompanyInput = Omit<
@@ -51,6 +55,18 @@ export const createCompany = async (
       ...(relativeLogoPath && { logo: relativeLogoPath }), // Add relative logo path if present
     },
   });
+
+  // Send notification to admins about new company for review
+  try {
+    const notification = NotificationTemplates.newCompanyForReview(
+      company.name || 'شركة غير محددة',
+    );
+    await NotificationService.sendToAdmins(notification);
+  } catch (error) {
+    console.error('Failed to send admin notification for new company:', error);
+    // Don't throw error, just log it as notification failure shouldn't break company creation
+  }
+
   return company;
 };
 

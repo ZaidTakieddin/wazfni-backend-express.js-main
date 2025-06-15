@@ -6,17 +6,26 @@ const prisma = new PrismaClient();
 
 export const recordCategoryClick = async (
   userId: string,
-  categoryId: string,
+  subCategoryId: string,
 ) => {
-  if (!categoryId) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Category ID is required');
+  if (!subCategoryId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'SubCategory ID is required');
+  }
+
+  // Verify subcategory exists
+  const subCategory = await prisma.subCategory.findUnique({
+    where: { id: subCategoryId },
+  });
+
+  if (!subCategory) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'SubCategory not found');
   }
 
   const categoryClick = await prisma.categoryClick.upsert({
     where: {
-      userId_categoryId: {
+      userId_subCategoryId: {
         userId,
-        categoryId,
+        subCategoryId,
       },
     },
     update: {
@@ -27,9 +36,16 @@ export const recordCategoryClick = async (
     },
     create: {
       userId,
-      categoryId,
+      subCategoryId,
       clickCount: 1,
       lastClickedAt: new Date(),
+    },
+    include: {
+      subCategory: {
+        include: {
+          category: true,
+        },
+      },
     },
   });
 
@@ -40,7 +56,11 @@ export const getUserCategoryClicks = async (userId: string) => {
   const categoryClicks = await prisma.categoryClick.findMany({
     where: { userId },
     include: {
-      category: true,
+      subCategory: {
+        include: {
+          category: true,
+        },
+      },
     },
     orderBy: {
       lastClickedAt: 'desc',

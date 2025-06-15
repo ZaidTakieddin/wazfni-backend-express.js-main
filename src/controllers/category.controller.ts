@@ -12,7 +12,7 @@ export const createCategory = catchAsync(
 );
 
 export const getCategories = catchAsync(async (req: Request, res: Response) => {
-  const categories = await categoryService.getAllCategories();
+  const categories = await categoryService.getCategories();
   res.send(categories);
 });
 
@@ -49,6 +49,91 @@ export const deleteCategory = catchAsync(
       );
     }
     await categoryService.deleteCategory(categoryId);
+    res.status(httpStatus.NO_CONTENT).send();
+  },
+);
+
+// SubCategory Controllers
+
+export const createSubCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const categoryId = req.params.categoryId;
+    if (typeof categoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Category ID must be provided',
+      );
+    }
+
+    const subCategoryData = {
+      ...req.body,
+      category: {
+        connect: { id: categoryId },
+      },
+    };
+
+    const subCategory =
+      await categoryService.createSubCategory(subCategoryData);
+    res.status(httpStatus.CREATED).send(subCategory);
+  },
+);
+
+export const getSubCategoriesByCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const categoryId = req.params.categoryId;
+    if (typeof categoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Category ID must be provided',
+      );
+    }
+    const subCategories =
+      await categoryService.getSubCategoriesByCategory(categoryId);
+    res.send(subCategories);
+  },
+);
+
+export const getSubCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const subCategoryId = req.params.subCategoryId;
+    if (typeof subCategoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'SubCategory ID must be provided',
+      );
+    }
+    const subCategory = await categoryService.getSubCategoryById(subCategoryId);
+    res.send(subCategory);
+  },
+);
+
+export const updateSubCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const subCategoryId = req.params.subCategoryId;
+    if (typeof subCategoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'SubCategory ID must be provided',
+      );
+    }
+    const subCategory = await categoryService.updateSubCategory(
+      subCategoryId,
+      req.body,
+    );
+    res.send(subCategory);
+  },
+);
+
+export const deleteSubCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const subCategoryId = req.params.subCategoryId;
+    if (typeof subCategoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'SubCategory ID must be provided',
+      );
+    }
+    await categoryService.deleteSubCategory(subCategoryId);
     res.status(httpStatus.NO_CONTENT).send();
   },
 );

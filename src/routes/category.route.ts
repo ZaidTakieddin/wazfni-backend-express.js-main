@@ -22,7 +22,7 @@ router.post(
 
 router
   .route('/:categoryId')
-  // Public route to get a single category?
+  // Public route to get a single category
   .get(categoryController.getCategory)
   .patch(
     auth,
@@ -34,6 +34,45 @@ router
     auth,
     authorize([Role.ADMIN]), // Only ADMIN can delete
     categoryController.deleteCategory,
+  );
+
+// SubCategory Routes
+
+// Get all subcategories for a specific category (public)
+router.get(
+  '/:categoryId/subcategories',
+  validate(categoryValidation.getSubCategoriesByCategorySchema),
+  categoryController.getSubCategoriesByCategory,
+);
+
+// Create a subcategory under a specific category (admin only)
+router.post(
+  '/:categoryId/subcategories',
+  auth,
+  authorize([Role.ADMIN]),
+  validate(categoryValidation.createSubCategorySchema),
+  categoryController.createSubCategory,
+);
+
+// SubCategory operations by ID
+router
+  .route('/subcategories/:subCategoryId')
+  // Public route to get a single subcategory
+  .get(
+    validate(categoryValidation.getSubCategorySchema),
+    categoryController.getSubCategory,
+  )
+  .patch(
+    auth,
+    authorize([Role.ADMIN]), // Only ADMIN can update
+    validate(categoryValidation.updateSubCategorySchema),
+    categoryController.updateSubCategory,
+  )
+  .delete(
+    auth,
+    authorize([Role.ADMIN]), // Only ADMIN can delete
+    validate(categoryValidation.deleteSubCategorySchema),
+    categoryController.deleteSubCategory,
   );
 
 export default router;

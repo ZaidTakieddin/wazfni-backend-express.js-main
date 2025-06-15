@@ -5,12 +5,17 @@ import {
   Prisma,
   WorkType,
   ApplicationStatus,
+  ApprovalStatus,
 } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import { getRelativePath } from '../middlewares/upload';
 import ApiError from '../utils/ApiError';
 import { getUserProfile } from './user.service'; // To get profile CV path
+import {
+  NotificationService,
+  NotificationTemplates,
+} from './notification.service';
 
 /**
  * Create a job application.
@@ -27,16 +32,34 @@ export const createApplication = async (
   answers: string[],
   uploadedCvPath?: string, // Absolute path from multer
 ): Promise<Application> => {
-  // 1. Check if Job exists and get questions
+  // 1. Check if Job exists, get questions, and verify approval status
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    select: { questions: true, companyId: true }, // Select questions and companyId
+    select: {
+      questions: true,
+      companyId: true,
+      approvalStatus: true,
+      company: {
+        select: { approvalStatus: true },
+      },
+    },
   });
   if (!job) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
   }
 
-  // 2. Verify answer count matches question count
+  // 2. Verify job and company are approved
+  if (
+    job.approvalStatus !== ApprovalStatus.APPROVED ||
+    job.company.approvalStatus !== ApprovalStatus.APPROVED
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Applications can only be submitted to approved jobs from approved companies',
+    );
+  }
+
+  // 3. Verify answer count matches question count
   if (job.questions.length !== answers.length) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -44,7 +67,7 @@ export const createApplication = async (
     );
   }
 
-  // 3. Check if user already applied
+  // 4. Check if user already applied
   const existingApplication = await prisma.application.findUnique({
     where: { jobId_applicantId: { jobId, applicantId } },
   });
@@ -55,7 +78,7 @@ export const createApplication = async (
     );
   }
 
-  // 4. Determine CV path (uploaded or profile)
+  // 5. Determine CV path (uploaded or profile)
   let cvPathToStore: string | undefined;
   if (uploadedCvPath) {
     cvPathToStore = getRelativePath(uploadedCvPath);
@@ -72,7 +95,7 @@ export const createApplication = async (
     }
   }
 
-  // 5. Require CV (either uploaded or from profile)
+  // 6. Require CV (either uploaded or from profile)
   if (!cvPathToStore) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -80,7 +103,7 @@ export const createApplication = async (
     );
   }
 
-  // 6. Create Application
+  // 7. Create Application
   const application = await prisma.application.create({
     data: {
       job: { connect: { id: jobId } },
@@ -89,7 +112,33 @@ export const createApplication = async (
       cvPath: cvPathToStore, // Store the relative path
       // status defaults to PENDING
     },
+    include: {
+      job: {
+        select: { jobTitle: true, companyId: true },
+      },
+      applicant: {
+        select: { firstName: true, lastName: true },
+      },
+    },
   });
+
+  // Send notification to company owner about new application
+  try {
+    const applicantName =
+      `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim() ||
+      'متقدم جديد';
+    const notification = NotificationTemplates.newApplication(
+      application.job.jobTitle,
+      applicantName,
+    );
+    await NotificationService.sendToCompanyOwner(
+      application.job.companyId,
+      notification,
+    );
+  } catch (error) {
+    console.error('Failed to send application notification:', error);
+    // Don't throw error, just log it as notification failure shouldn't break application creation
+  }
 
   return application;
 };
@@ -250,12 +299,24 @@ export const getMyApplications = async (
   }
 
   const applications = await prisma.application.findMany({
-    where: { applicantId },
+    where: {
+      applicantId,
+      job: {
+        approvalStatus: ApprovalStatus.APPROVED,
+        company: {
+          approvalStatus: ApprovalStatus.APPROVED,
+        },
+      },
+    },
     include: {
       job: {
         include: {
           company: true,
-          categories: true,
+          subCategories: {
+            include: {
+              category: true,
+            },
+          },
         },
       },
     },
