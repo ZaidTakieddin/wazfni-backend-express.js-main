@@ -166,6 +166,7 @@ export const getJobsByCompanyId = async (
   const jobs = await prisma.job.findMany({
     where: {
       companyId,
+      approvalStatus: ApprovalStatus.APPROVED,
       ...(includeArchived ? {} : { isArchived: false }), // Exclude archived jobs unless explicitly requested
     },
     include: {
