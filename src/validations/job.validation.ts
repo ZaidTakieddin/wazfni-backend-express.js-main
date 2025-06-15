@@ -160,6 +160,7 @@ export const searchJobsSchema = z.object({
     title: z.string().optional(),
     city: z.string().optional(),
     subCategory: z.string().optional(),
+    subCategoryId: z.string().cuid('Invalid subcategory ID').optional(),
     companyName: z.string().optional(),
     workType: z.string().optional(),
   }),

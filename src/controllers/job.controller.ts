@@ -177,14 +177,22 @@ export const deleteJobPost = catchAsync(async (req: Request, res: Response) => {
 
 // Public search endpoint
 export const searchJobs = catchAsync(async (req: Request, res: Response) => {
-  const { searchTerm, title, city, subCategory, companyName, workType } =
-    req.query;
+  const {
+    searchTerm,
+    title,
+    city,
+    subCategory,
+    subCategoryId,
+    companyName,
+    workType,
+  } = req.query;
 
   const searchOptions = {
     searchTerm: searchTerm as string | undefined,
     title: title as string | undefined,
     city: city as string | undefined,
     subCategory: subCategory as string | undefined,
+    subCategoryId: subCategoryId as string | undefined,
     companyName: companyName as string | undefined,
     workType: workType as string | undefined,
   };

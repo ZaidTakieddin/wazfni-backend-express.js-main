@@ -507,6 +507,7 @@ interface SearchOptions {
   title?: string;
   city?: string;
   subCategory?: string; // Filtering by subcategory name
+  subCategoryId?: string; // Filtering by subcategory ID
   companyName?: string;
   workType?: string;
 }
@@ -519,8 +520,15 @@ interface SearchOptions {
 export const searchAndFilterJobs = async (
   options: SearchOptions,
 ): Promise<Job[]> => {
-  const { searchTerm, title, city, subCategory, companyName, workType } =
-    options;
+  const {
+    searchTerm,
+    title,
+    city,
+    subCategory,
+    subCategoryId,
+    companyName,
+    workType,
+  } = options;
 
   // Build the where clause dynamically
   let where: Prisma.JobWhereInput = {};
@@ -558,15 +566,43 @@ export const searchAndFilterJobs = async (
     });
   }
 
-  // Filter by subcategory name
-  if (subCategory) {
-    filterConditions.push({
-      subCategories: {
-        some: {
-          name: { contains: subCategory, mode: 'insensitive' },
+  // Filter by subcategory (name or ID)
+  if (subCategory || subCategoryId) {
+    const subCategoryConditions: Prisma.JobWhereInput[] = [];
+
+    // Filter by subcategory name
+    if (subCategory) {
+      subCategoryConditions.push({
+        subCategories: {
+          some: {
+            name: { contains: subCategory, mode: 'insensitive' },
+          },
         },
-      },
-    });
+      });
+    }
+
+    // Filter by subcategory ID
+    if (subCategoryId) {
+      subCategoryConditions.push({
+        subCategories: {
+          some: {
+            id: subCategoryId,
+          },
+        },
+      });
+    }
+
+    // If both are provided, use OR condition
+    if (subCategoryConditions.length > 1) {
+      filterConditions.push({
+        OR: subCategoryConditions,
+      });
+    } else if (subCategoryConditions.length === 1) {
+      const condition = subCategoryConditions[0];
+      if (condition) {
+        filterConditions.push(condition);
+      }
+    }
   }
 
   // Filter by company name
