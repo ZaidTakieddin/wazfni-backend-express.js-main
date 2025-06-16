@@ -206,6 +206,7 @@ export const getJobsByCompanyIdAndStatus = async (
       ...(includeArchived ? {} : { isArchived: false }),
     },
     include: {
+      company: true,
       subCategories: {
         include: {
           category: true,
