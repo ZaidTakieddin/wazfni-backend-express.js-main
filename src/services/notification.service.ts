@@ -1,4 +1,4 @@
-import admin from '../config/firebase';
+import admin, { isFirebaseEnabled } from '../config/firebase';
 import prisma from '../config/prisma';
 import { Role } from '@prisma/client';
 
@@ -10,12 +10,26 @@ interface NotificationPayload {
 
 export class NotificationService {
   /**
+   * Check if Firebase notifications are enabled
+   */
+  private static isEnabled(): boolean {
+    return isFirebaseEnabled;
+  }
+
+  /**
    * Send notification to specific user by ID
    */
   static async sendToUser(
     userId: string,
     payload: NotificationPayload,
   ): Promise<void> {
+    if (!this.isEnabled()) {
+      console.log(
+        `Firebase disabled - skipping notification to user ${userId}`,
+      );
+      return;
+    }
+
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -37,6 +51,11 @@ export class NotificationService {
    * Send notification to all admins
    */
   static async sendToAdmins(payload: NotificationPayload): Promise<void> {
+    if (!this.isEnabled()) {
+      console.log('Firebase disabled - skipping notification to admins');
+      return;
+    }
+
     try {
       const admins = await prisma.user.findMany({
         where: { role: Role.ADMIN },
@@ -63,6 +82,13 @@ export class NotificationService {
     subCategoryIds: string[],
     payload: NotificationPayload,
   ): Promise<void> {
+    if (!this.isEnabled()) {
+      console.log(
+        'Firebase disabled - skipping notification to interested users',
+      );
+      return;
+    }
+
     try {
       // Get users who have clicked on these subcategories
       const interestedUsers = await prisma.user.findMany({
@@ -102,6 +128,13 @@ export class NotificationService {
     companyId: string,
     payload: NotificationPayload,
   ): Promise<void> {
+    if (!this.isEnabled()) {
+      console.log(
+        `Firebase disabled - skipping notification to company owner ${companyId}`,
+      );
+      return;
+    }
+
     try {
       const company = await prisma.company.findUnique({
         where: { id: companyId },
@@ -134,6 +167,11 @@ export class NotificationService {
     tokens: string[],
     payload: NotificationPayload,
   ): Promise<void> {
+    if (!this.isEnabled()) {
+      console.log('Firebase disabled - skipping token notifications');
+      return;
+    }
+
     try {
       const message = {
         notification: {
