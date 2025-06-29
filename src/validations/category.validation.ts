@@ -1,33 +1,32 @@
 import { z } from 'zod';
+import { listPaginationSchema } from './common.validation';
 
 export const createCategorySchema = z.object({
   body: z.object({
-    name: z.string().min(1, 'Category name is required'),
-    icon: z.string().optional(),
+    name: z.string().min(1, 'Name is required').max(100),
+    icon: z.string().url().optional(),
   }),
 });
 
 export const updateCategorySchema = z.object({
-  body: z
-    .object({
-      name: z.string().min(1).optional(),
-      icon: z.string().optional(),
-    })
-    .partial(),
   params: z.object({
-    categoryId: z.string().cuid('Invalid Category ID'),
+    categoryId: z.string(),
   }),
-});
-
-export const getCategorySchema = z.object({
-  params: z.object({
-    categoryId: z.string().cuid('Invalid Category ID'),
+  body: z.object({
+    name: z.string().min(1).max(100).optional(),
+    icon: z.string().url().optional(),
   }),
 });
 
 export const deleteCategorySchema = z.object({
   params: z.object({
-    categoryId: z.string().cuid('Invalid Category ID'),
+    categoryId: z.string(),
+  }),
+});
+
+export const getCategorySchema = z.object({
+  params: z.object({
+    categoryId: z.string(),
   }),
 });
 
@@ -69,4 +68,15 @@ export const deleteSubCategorySchema = z.object({
   params: z.object({
     subCategoryId: z.string().cuid('Invalid SubCategory ID'),
   }),
+});
+
+export const getCategoriesSchema = z.object({
+  query: listPaginationSchema,
+});
+
+export const getSubCategoriesSchema = z.object({
+  params: z.object({
+    categoryId: z.string(),
+  }),
+  query: listPaginationSchema,
 });

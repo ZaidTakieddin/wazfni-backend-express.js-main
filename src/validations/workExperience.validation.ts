@@ -1,38 +1,43 @@
 import { z } from 'zod';
+import { listPaginationSchema } from './common.validation';
 
 export const createWorkExperienceSchema = z.object({
   body: z.object({
     jobTitle: z.string().min(1, 'Job title is required'),
     companyName: z.string().min(1, 'Company name is required'),
-    startDate: z.coerce.date({ message: 'Invalid start date' }), // Coerce string/number to Date
-    endDate: z.coerce
-      .date({ message: 'Invalid end date' })
-      .optional()
-      .nullable(),
-    description: z.string().optional().nullable(),
-    current: z.boolean().optional().default(false),
+    startDate: z.string().datetime('Invalid start date'),
+    endDate: z.string().datetime('Invalid end date').optional(),
+    description: z.string().optional(),
+    current: z.boolean().optional(),
   }),
 });
 
 export const updateWorkExperienceSchema = z.object({
   params: z.object({
-    experienceId: z.string().cuid('Invalid experience ID'),
+    workExperienceId: z.string(),
   }),
   body: z.object({
-    jobTitle: z.string().min(1, 'Job title is required').optional(),
-    companyName: z.string().min(1, 'Company name is required').optional(),
-    startDate: z.coerce.date({ message: 'Invalid start date' }).optional(),
-    endDate: z.coerce
-      .date({ message: 'Invalid end date' })
-      .optional()
-      .nullable(),
-    description: z.string().optional().nullable(),
+    jobTitle: z.string().min(1).optional(),
+    companyName: z.string().min(1).optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    description: z.string().optional(),
     current: z.boolean().optional(),
   }),
 });
 
-export const getOrDeleteWorkExperienceSchema = z.object({
+export const deleteWorkExperienceSchema = z.object({
   params: z.object({
-    experienceId: z.string().cuid('Invalid experience ID'),
+    workExperienceId: z.string(),
   }),
+});
+
+export const getWorkExperienceSchema = z.object({
+  params: z.object({
+    workExperienceId: z.string(),
+  }),
+});
+
+export const getWorkExperiencesSchema = z.object({
+  query: listPaginationSchema,
 });

@@ -5,7 +5,9 @@ import validate from '../middlewares/validate';
 import {
   createWorkExperienceSchema,
   updateWorkExperienceSchema,
-  getOrDeleteWorkExperienceSchema,
+  getWorkExperienceSchema,
+  deleteWorkExperienceSchema,
+  getWorkExperiencesSchema,
 } from '../validations/workExperience.validation';
 import * as workExperienceController from '../controllers/workExperience.controller';
 
@@ -20,14 +22,15 @@ router
   )
   .get(
     auth, // Require authentication
+    validate(getWorkExperiencesSchema),
     workExperienceController.getMyWorkExperiences,
   );
 
 router
-  .route('/:experienceId')
+  .route('/:workExperienceId')
   .get(
     auth,
-    validate(getOrDeleteWorkExperienceSchema),
+    validate(getWorkExperienceSchema),
     workExperienceController.getWorkExperience,
   )
   .patch(
@@ -37,7 +40,7 @@ router
   )
   .delete(
     auth,
-    validate(getOrDeleteWorkExperienceSchema),
+    validate(deleteWorkExperienceSchema),
     workExperienceController.deleteWorkExperience,
   );
 

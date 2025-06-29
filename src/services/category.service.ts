@@ -2,6 +2,13 @@ import { Category, SubCategory, Prisma } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 /**
  * Create a category.
@@ -22,20 +29,34 @@ export const createCategory = async (
 };
 
 /**
- * Get all categories with their subcategories.
- * @returns
+ * Get all categories with their subcategories and pagination.
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated categories
  */
-export const getCategories = async (): Promise<
-  (Category & { subCategories: SubCategory[] })[]
-> => {
-  return prisma.category.findMany({
+export const getCategories = async (
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<Category & { subCategories: SubCategory[] }>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'name',
+  );
+
+  // Get total count
+  const total = await prisma.category.count();
+
+  // Get categories with pagination
+  const categories = await prisma.category.findMany({
     include: {
       subCategories: {
         orderBy: { name: 'asc' },
       },
     },
-    orderBy: { name: 'asc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(categories, page, limit, total);
 };
 
 /**
@@ -174,22 +195,39 @@ export const createSubCategory = async (
  */
 export const getSubCategoriesByCategory = async (
   categoryId: string,
-): Promise<SubCategory[]> => {
-  // Verify category exists
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<SubCategory & { category: Category }>> => {
+  // First check if category exists
   const category = await prisma.category.findUnique({
     where: { id: categoryId },
   });
+
   if (!category) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Category not found');
   }
 
-  return prisma.subCategory.findMany({
-    where: { categoryId },
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'name',
+  );
+
+  const where = { categoryId };
+
+  // Get total count
+  const total = await prisma.subCategory.count({ where });
+
+  // Get subcategories with pagination
+  const subCategories = await prisma.subCategory.findMany({
+    where,
     include: {
       category: true,
     },
-    orderBy: { name: 'asc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(subCategories, page, limit, total);
 };
 
 /**

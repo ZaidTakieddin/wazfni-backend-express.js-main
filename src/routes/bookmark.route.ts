@@ -5,6 +5,7 @@ import {
   bookmarkJobSchema,
   unbookmarkJobSchema,
   isJobBookmarkedSchema,
+  getBookmarkedJobsSchema,
 } from '../validations/bookmark.validation';
 import * as bookmarkController from '../controllers/bookmark.controller';
 
@@ -27,7 +28,12 @@ router.delete(
 );
 
 // Get all bookmarked jobs for the current user
-router.get('/jobs', auth, bookmarkController.getBookmarkedJobs);
+router.get(
+  '/jobs',
+  auth,
+  validate(getBookmarkedJobsSchema),
+  bookmarkController.getBookmarkedJobs,
+);
 
 // Check if a job is bookmarked
 router.get(

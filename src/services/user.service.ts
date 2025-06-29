@@ -7,6 +7,13 @@ import {
   deleteFileByRelativePath,
 } from '../middlewares/upload'; // Import helper
 import ApiError from '../utils/ApiError';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 // Type for the data coming from the validated request body for profile update
 // We define it here because we need to handle the date conversion
@@ -46,14 +53,6 @@ type UserFilters = {
   role?: Role;
   isVerified?: boolean;
   search?: string; // Search by email, firstName, or lastName
-};
-
-// Type for pagination
-type PaginationOptions = {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
 };
 
 /**
@@ -255,20 +254,19 @@ export const getUserById = async (
 
 /**
  * Get all users with filtering and pagination (Admin only)
- * @param filters - User filters
- * @param pagination - Pagination options
- * @returns Promise with users and pagination info
+ * @param filters - Filtering options
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated users
  */
 export const getAllUsers = async (
   filters: UserFilters = {},
-  pagination: PaginationOptions = {},
-) => {
-  const {
-    page = 1,
-    limit = 10,
-    sortBy = 'createdAt',
-    sortOrder = 'desc',
-  } = pagination;
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<any>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
   const { role, isVerified, search } = filters;
 
   // Build where clause
@@ -278,7 +276,7 @@ export const getAllUsers = async (
     where.role = role;
   }
 
-  if (typeof isVerified === 'boolean') {
+  if (isVerified !== undefined) {
     where.isVerified = isVerified;
   }
 
@@ -287,11 +285,18 @@ export const getAllUsers = async (
       { email: { contains: search, mode: 'insensitive' } },
       { firstName: { contains: search, mode: 'insensitive' } },
       { lastName: { contains: search, mode: 'insensitive' } },
+      {
+        profile: {
+          firstName: { contains: search, mode: 'insensitive' },
+        },
+      },
+      {
+        profile: {
+          lastName: { contains: search, mode: 'insensitive' },
+        },
+      },
     ];
   }
-
-  // Calculate pagination
-  const skip = (page - 1) * limit;
 
   // Get total count
   const total = await prisma.user.count({ where });
@@ -337,20 +342,12 @@ export const getAllUsers = async (
         },
       },
     },
-    skip,
+    skip: calculateSkip(page, limit),
     take: limit,
     orderBy: { [sortBy]: sortOrder },
   });
 
-  return {
-    users,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
-  };
+  return createPaginatedResponse(users, page, limit, total);
 };
 
 /**

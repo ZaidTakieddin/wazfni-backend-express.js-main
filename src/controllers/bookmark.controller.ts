@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import * as bookmarkService from '../services/bookmark.service';
 import ApiError from '../utils/ApiError';
+import { parsePaginationOptions } from '../utils/pagination';
 
 export const bookmarkJob = catchAsync(async (req: Request, res: Response) => {
   const { jobId } = req.params;
@@ -31,7 +32,14 @@ export const getBookmarkedJobs = catchAsync(
     if (!userId) {
       throw new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated');
     }
-    const result = await bookmarkService.getBookmarkedJobs(userId);
+
+    // Parse pagination options from query parameters
+    const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
+
+    const result = await bookmarkService.getBookmarkedJobs(
+      userId,
+      paginationOptions,
+    );
     res.send(result);
   },
 );

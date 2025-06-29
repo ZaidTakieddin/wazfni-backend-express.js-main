@@ -6,6 +6,7 @@ import {
   ContractType,
   SalaryType,
 } from '@prisma/client'; // Import generated enums
+import { jobPaginationSchema } from './common.validation';
 
 export const createJobSchema = z.object({
   body: z
@@ -163,5 +164,75 @@ export const searchJobsSchema = z.object({
     subCategoryId: z.string().cuid('Invalid subcategory ID').optional(),
     companyName: z.string().optional(),
     workType: z.string().optional(),
+    // Add pagination parameters
+    page: z.string().transform(Number).pipe(z.number().min(1)).optional(),
+    limit: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().min(1).max(100))
+      .optional(),
+    sortBy: z
+      .enum([
+        'createdAt',
+        'updatedAt',
+        'jobTitle',
+        'workType',
+        'contractType',
+        'experienceLevel',
+        'minSalary',
+        'maxSalary',
+      ])
+      .optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+  }),
+});
+
+// Schema for getting all jobs with pagination
+export const getAllJobsSchema = z.object({
+  query: z.object({
+    page: z.string().transform(Number).pipe(z.number().min(1)).optional(),
+    limit: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().min(1).max(100))
+      .optional(),
+    sortBy: z
+      .enum([
+        'createdAt',
+        'updatedAt',
+        'jobTitle',
+        'workType',
+        'contractType',
+        'experienceLevel',
+        'minSalary',
+        'maxSalary',
+      ])
+      .optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+  }),
+});
+
+// Schema for getting company jobs with pagination
+export const getCompanyJobsSchema = z.object({
+  query: z.object({
+    page: z.string().transform(Number).pipe(z.number().min(1)).optional(),
+    limit: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().min(1).max(100))
+      .optional(),
+    sortBy: z
+      .enum([
+        'createdAt',
+        'updatedAt',
+        'jobTitle',
+        'workType',
+        'contractType',
+        'experienceLevel',
+        'minSalary',
+        'maxSalary',
+      ])
+      .optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
   }),
 });

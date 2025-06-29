@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import * as categoryService from '../services/category.service';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
+import { parsePaginationOptions } from '../utils/pagination';
 
 export const createCategory = catchAsync(
   async (req: Request, res: Response) => {
@@ -12,7 +13,8 @@ export const createCategory = catchAsync(
 );
 
 export const getCategories = catchAsync(async (req: Request, res: Response) => {
-  const categories = await categoryService.getCategories();
+  const paginationOptions = parsePaginationOptions(req.query, 'name');
+  const categories = await categoryService.getCategories(paginationOptions);
   res.send(categories);
 });
 
@@ -87,8 +89,11 @@ export const getSubCategoriesByCategory = catchAsync(
         'Category ID must be provided',
       );
     }
-    const subCategories =
-      await categoryService.getSubCategoriesByCategory(categoryId);
+    const paginationOptions = parsePaginationOptions(req.query, 'name');
+    const subCategories = await categoryService.getSubCategoriesByCategory(
+      categoryId,
+      paginationOptions,
+    );
     res.send(subCategories);
   },
 );

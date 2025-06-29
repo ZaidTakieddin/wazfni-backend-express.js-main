@@ -16,6 +16,13 @@ import {
   NotificationService,
   NotificationTemplates,
 } from './notification.service';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 /**
  * Create a job application.
@@ -144,16 +151,18 @@ export const createApplication = async (
 };
 
 /**
- * Get applications for a specific job owned by the user's company.
+ * Get applications for a specific job owned by the user's company with pagination.
  * @param companyUserId - The user ID of the company representative
  * @param jobId
- * @returns {Promise<Application[]>}
+ * @param paginationOptions - Pagination options
+ * @returns {Promise<PaginatedResponse<Application>>}
  * @throws {ApiError}
  */
 export const getApplicationsForJob = async (
   companyUserId: string,
   jobId: string,
-): Promise<Application[]> => {
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<Application>> => {
   // 1. Get the company associated with the user
   const company = await prisma.company.findUnique({
     where: { userId: companyUserId },
@@ -181,9 +190,19 @@ export const getApplicationsForJob = async (
     );
   }
 
-  // 3. Fetch applications including applicant details
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'appliedAt',
+  );
+
+  const where = { jobId: jobId };
+
+  // Get total count
+  const total = await prisma.application.count({ where });
+
+  // 3. Fetch applications including applicant details with pagination
   const applications = await prisma.application.findMany({
-    where: { jobId: jobId },
+    where,
     include: {
       applicant: {
         include: {
@@ -196,12 +215,12 @@ export const getApplicationsForJob = async (
         },
       },
     },
-    orderBy: {
-      appliedAt: 'desc',
-    },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
 
-  return applications;
+  return createPaginatedResponse(applications, page, limit, total);
 };
 
 /**

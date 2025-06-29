@@ -4,6 +4,7 @@ import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 import * as userService from '../services/user.service';
 import * as educationCertificateService from '../services/educationCertificate.service';
+import { parsePaginationOptions } from '../utils/pagination';
 
 // Helper to get user ID and profile ID, ensuring user is authenticated
 // (Could be moved to a shared utils file if used in more controllers)
@@ -29,9 +30,11 @@ export const createEducationCertificate = catchAsync(
 export const getMyEducationCertificates = catchAsync(
   async (req: Request, res: Response) => {
     const userProfileId = await getProfileIdFromRequest(req);
+    const paginationOptions = parsePaginationOptions(req.query, 'startDate');
     const certificates =
-      await educationCertificateService.getEducationCertificatesByProfileId(
+      await educationCertificateService.getUserEducationCertificates(
         userProfileId,
+        paginationOptions,
       );
     res.send(certificates);
   },

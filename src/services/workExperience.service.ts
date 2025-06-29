@@ -2,6 +2,13 @@ import { Prisma, WorkExperience } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 // Type for the input data from validation
 type WorkExperienceInput = Omit<
@@ -30,17 +37,34 @@ export const createWorkExperience = async (
 };
 
 /**
- * Get all work experiences for a user profile.
- * @param userProfileId
- * @returns
+ * Get all work experiences for a user profile with pagination.
+ * @param userProfileId - User Profile ID
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated work experiences
  */
 export const getWorkExperiencesByProfileId = async (
   userProfileId: string,
-): Promise<WorkExperience[]> => {
-  return prisma.workExperience.findMany({
-    where: { userProfileId },
-    orderBy: { startDate: 'desc' }, // Example ordering
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<WorkExperience>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'startDate',
+  );
+
+  const where = { userProfileId };
+
+  // Get total count
+  const total = await prisma.workExperience.count({ where });
+
+  // Get work experiences with pagination
+  const workExperiences = await prisma.workExperience.findMany({
+    where,
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(workExperiences, page, limit, total);
 };
 
 /**

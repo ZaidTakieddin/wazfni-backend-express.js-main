@@ -2,6 +2,13 @@ import { Prisma, EducationCertificate } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 // Type for the input data from validation
 type EducationCertificateInput = Omit<
@@ -102,4 +109,35 @@ export const deleteEducationCertificateById = async (
   await prisma.educationCertificate.delete({
     where: { id: certificateId },
   });
+};
+
+/**
+ * Get all education certificates for a user profile with pagination.
+ * @param userProfileId - User Profile ID
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated education certificates
+ */
+export const getUserEducationCertificates = async (
+  userProfileId: string,
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<EducationCertificate>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'startDate',
+  );
+
+  const where = { userProfileId };
+
+  // Get total count
+  const total = await prisma.educationCertificate.count({ where });
+
+  // Get education certificates with pagination
+  const certificates = await prisma.educationCertificate.findMany({
+    where,
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
+  });
+
+  return createPaginatedResponse(certificates, page, limit, total);
 };

@@ -9,7 +9,11 @@ import { Role } from '@prisma/client';
 const router = express.Router();
 
 // Public route to get all categories
-router.get('/', categoryController.getCategories);
+router.get(
+  '/',
+  validate(categoryValidation.getCategoriesSchema),
+  categoryController.getCategories,
+);
 
 // Admin routes for managing categories
 router.post(
@@ -41,7 +45,7 @@ router
 // Get all subcategories for a specific category (public)
 router.get(
   '/:categoryId/subcategories',
-  validate(categoryValidation.getSubCategoriesByCategorySchema),
+  validate(categoryValidation.getSubCategoriesSchema),
   categoryController.getSubCategoriesByCategory,
 );
 

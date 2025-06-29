@@ -3,6 +3,7 @@ import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 import httpStatus from 'http-status';
 import * as categoryClickService from '../services/categoryClick.service';
+import { parsePaginationOptions } from '../utils/pagination';
 
 export const recordCategoryClick = catchAsync(
   async (req: Request, res: Response) => {
@@ -36,9 +37,15 @@ export const getUserCategoryClicks = catchAsync(
     }
 
     const userId = req.user.id;
+    const paginationOptions = parsePaginationOptions(
+      req.query,
+      'lastClickedAt',
+    );
 
-    const categoryClicks =
-      await categoryClickService.getUserCategoryClicks(userId);
+    const categoryClicks = await categoryClickService.getUserCategoryClicks(
+      userId,
+      paginationOptions,
+    );
 
     res.status(200).json({
       status: 'success',

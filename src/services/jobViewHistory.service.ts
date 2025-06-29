@@ -1,75 +1,107 @@
-import { PrismaClient, ApprovalStatus } from '@prisma/client';
+import {
+  JobViewHistory,
+  Job,
+  Company,
+  ApprovalStatus,
+  SubCategory,
+  Category,
+  Application,
+} from '@prisma/client';
+import prisma from '../config/prisma';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 import ApiError from '../utils/ApiError';
 import httpStatus from 'http-status';
 
-const prisma = new PrismaClient();
-
-export const recordJobView = async (userId: string, jobId: string) => {
-  if (!jobId) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
-  }
-
-  // Verify the job exists and is approved before recording view
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      company: {
-        select: { approvalStatus: true },
-      },
-    },
-  });
-
-  if (!job) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Job not found');
-  }
-
-  // Only track views for approved jobs from approved companies
-  if (
-    job.approvalStatus !== ApprovalStatus.APPROVED ||
-    job.company.approvalStatus !== ApprovalStatus.APPROVED
-  ) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      'Cannot track view for unapproved job',
-    );
-  }
-
-  const jobView = await prisma.jobViewHistory.upsert({
+/**
+ * Create or update job view history entry
+ * @param userId - User ID
+ * @param jobId - Job ID
+ * @returns Promise with job view history entry
+ */
+export const createJobView = async (
+  userId: string,
+  jobId: string,
+): Promise<JobViewHistory> => {
+  // Check if the user has already viewed this job
+  const existingView = await prisma.jobViewHistory.findUnique({
     where: {
       userId_jobId: {
         userId,
         jobId,
       },
     },
-    update: {
-      viewCount: {
-        increment: 1,
-      },
-      lastViewedAt: new Date(),
-    },
-    create: {
-      userId,
-      jobId,
-      viewCount: 1,
-      lastViewedAt: new Date(),
-    },
   });
 
-  return jobView;
+  if (existingView) {
+    // Update existing view - increment view count and update timestamp
+    return prisma.jobViewHistory.update({
+      where: { id: existingView.id },
+      data: {
+        viewCount: existingView.viewCount + 1,
+        lastViewedAt: new Date(),
+      },
+    });
+  } else {
+    // Create new view record
+    return prisma.jobViewHistory.create({
+      data: {
+        userId,
+        jobId,
+        viewCount: 1,
+        lastViewedAt: new Date(),
+      },
+    });
+  }
 };
 
-export const getUserJobViews = async (userId: string) => {
-  const jobViews = await prisma.jobViewHistory.findMany({
-    where: {
-      userId,
-      job: {
-        isArchived: false,
+/**
+ * Get job view history for a user with pagination and job details
+ * @param userId - User ID
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated job view history
+ */
+export const getUserJobViewHistory = async (
+  userId: string,
+  paginationOptions: PaginationOptions = {},
+): Promise<
+  PaginatedResponse<
+    JobViewHistory & {
+      job: Job & {
+        company: Company;
+        subCategories: (SubCategory & { category: Category })[];
+        _count: { applications: number };
+      };
+    }
+  >
+> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'lastViewedAt',
+  );
+
+  const where = {
+    userId,
+    job: {
+      isArchived: false,
+      approvalStatus: ApprovalStatus.APPROVED,
+      company: {
         approvalStatus: ApprovalStatus.APPROVED,
-        company: {
-          approvalStatus: ApprovalStatus.APPROVED,
-        },
       },
     },
+  };
+
+  // Get total count
+  const total = await prisma.jobViewHistory.count({ where });
+
+  // Get job view history with job details and pagination
+  const jobViews = await prisma.jobViewHistory.findMany({
+    where,
     include: {
       job: {
         include: {
@@ -79,47 +111,102 @@ export const getUserJobViews = async (userId: string) => {
               category: true,
             },
           },
-          bookmarks: {
-            where: {
-              userId,
+          _count: {
+            select: { applications: true },
+          },
+        },
+      },
+    },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
+  });
+
+  return createPaginatedResponse(jobViews, page, limit, total);
+};
+
+/**
+ * Get personalized job recommendations based on user's viewing history with pagination
+ * This is a simplified recommendation system based on:
+ * - Categories the user has viewed most
+ * - Similar jobs to what they've viewed
+ * @param userId - User ID
+ * @param paginationOptions - Pagination options
+ * @returns Promise with paginated recommended jobs
+ */
+export const getRecommendedJobs = async (
+  userId: string,
+  paginationOptions: PaginationOptions = {},
+): Promise<
+  PaginatedResponse<
+    Job & {
+      company: Company;
+      subCategories: (SubCategory & { category: Category })[];
+      _count: { applications: number };
+    }
+  >
+> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  // Get user's most viewed categories
+  const userViewHistory = await prisma.jobViewHistory.findMany({
+    where: { userId },
+    include: {
+      job: {
+        include: {
+          subCategories: {
+            include: {
+              category: true,
             },
           },
         },
       },
     },
     orderBy: {
-      lastViewedAt: 'desc',
+      viewCount: 'desc',
     },
+    take: 20, // Get top 20 viewed jobs to analyze patterns
   });
 
-  return jobViews.map((jobView) => ({
-    ...jobView,
-    job: {
-      ...jobView.job,
-      isBookmarked: userId ? jobView.job.bookmarks.length > 0 : undefined,
-      bookmarks: undefined, // Remove the bookmarks array from response
-    },
-  }));
-};
+  // Extract category IDs from viewed jobs
+  const viewedCategoryIds = userViewHistory
+    .flatMap((view) =>
+      view.job.subCategories.map((subCat) => subCat.category.id),
+    )
+    .filter((id, index, array) => array.indexOf(id) === index); // Remove duplicates
 
-export const getRecommendedJobs = async (userId: string) => {
-  const recommendedJobs = await prisma.job.findMany({
-    where: {
-      isArchived: false,
+  // Also get jobs the user has already viewed to exclude them
+  const viewedJobIds = userViewHistory.map((view) => view.jobId);
+
+  const where = {
+    id: {
+      notIn: viewedJobIds, // Exclude already viewed jobs
+    },
+    isArchived: false,
+    approvalStatus: ApprovalStatus.APPROVED,
+    company: {
       approvalStatus: ApprovalStatus.APPROVED,
-      company: {
-        approvalStatus: ApprovalStatus.APPROVED,
-      },
-      subCategories: {
-        some: {
-          clicks: {
-            some: {
-              userId,
-            },
+    },
+    subCategories: {
+      some: {
+        category: {
+          id: {
+            in: viewedCategoryIds.length > 0 ? viewedCategoryIds : undefined,
           },
         },
       },
     },
+  };
+
+  // Get total count
+  const total = await prisma.job.count({ where });
+
+  // Get recommended jobs with pagination
+  const recommendedJobs = await prisma.job.findMany({
+    where,
     include: {
       company: true,
       subCategories: {
@@ -127,23 +214,14 @@ export const getRecommendedJobs = async (userId: string) => {
           category: true,
         },
       },
-      bookmarks: {
-        where: {
-          userId,
-        },
+      _count: {
+        select: { applications: true },
       },
     },
-    orderBy: {
-      viewHistory: {
-        _count: 'desc',
-      },
-    },
-    take: 10,
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
 
-  return recommendedJobs.map((job) => ({
-    ...job,
-    isBookmarked: userId ? job.bookmarks.length > 0 : undefined,
-    bookmarks: undefined, // Remove the bookmarks array from response
-  }));
+  return createPaginatedResponse(recommendedJobs, page, limit, total);
 };

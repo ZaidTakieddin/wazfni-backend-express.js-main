@@ -12,6 +12,13 @@ import {
   NotificationService,
   NotificationTemplates,
 } from './notification.service';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 // Interface for job creation input from the controller/validation
 interface CreateJobInput
@@ -20,19 +27,34 @@ interface CreateJobInput
 }
 
 /**
- * Get all jobs.
+ * Get all jobs with pagination.
  * @param userId - Optional user ID to check bookmark status
- * @returns A list of jobs with bookmark status if userId is provided
+ * @param paginationOptions - Pagination options
+ * @returns A paginated list of jobs with bookmark status if userId is provided
  */
-export const getJobs = async (userId?: string) => {
-  const jobs = await prisma.job.findMany({
-    where: {
-      isArchived: false,
+export const getJobs = async (
+  userId?: string,
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<any>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  const where: Prisma.JobWhereInput = {
+    isArchived: false,
+    approvalStatus: ApprovalStatus.APPROVED,
+    company: {
       approvalStatus: ApprovalStatus.APPROVED,
-      company: {
-        approvalStatus: ApprovalStatus.APPROVED,
-      },
     },
+  };
+
+  // Get total count
+  const total = await prisma.job.count({ where });
+
+  // Get jobs with pagination
+  const jobs = await prisma.job.findMany({
+    where,
     include: {
       company: true,
       subCategories: {
@@ -47,13 +69,18 @@ export const getJobs = async (userId?: string) => {
           }
         : undefined,
     },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
 
-  return jobs.map((job) => ({
+  const jobsWithBookmarkStatus = jobs.map((job) => ({
     ...job,
     isBookmarked: userId ? job.bookmarks.length > 0 : undefined,
     bookmarks: undefined, // Remove the bookmarks array from response
   }));
+
+  return createPaginatedResponse(jobsWithBookmarkStatus, page, limit, total);
 };
 
 /**

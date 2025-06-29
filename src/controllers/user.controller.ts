@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import * as userService from '../services/user.service';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
+import { parsePaginationOptions } from '../utils/pagination';
 
 // Get the profile of the currently logged-in user
 export const getMyProfile = catchAsync(async (req: Request, res: Response) => {
@@ -84,8 +85,7 @@ export const getUserProfileById = catchAsync(
 
 // Get all users with filtering and pagination (Admin only)
 export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const { page, limit, sortBy, sortOrder, role, isVerified, search } =
-    req.query;
+  const { role, isVerified, search } = req.query;
 
   const filters = {
     role: role as any,
@@ -93,14 +93,9 @@ export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
     search: search as string,
   };
 
-  const pagination = {
-    page: page as any,
-    limit: limit as any,
-    sortBy: sortBy as any,
-    sortOrder: sortOrder as any,
-  };
+  const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
 
-  const result = await userService.getAllUsers(filters, pagination);
+  const result = await userService.getAllUsers(filters, paginationOptions);
   res.send(result);
 });
 

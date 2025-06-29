@@ -1,19 +1,24 @@
 import { z } from 'zod';
+import { jobPaginationSchema } from './common.validation';
 
 export const bookmarkJobSchema = z.object({
-  params: z.object({
-    jobId: z.string().cuid('Invalid Job ID'),
+  body: z.object({
+    jobId: z.string(),
   }),
 });
 
 export const unbookmarkJobSchema = z.object({
-  params: z.object({
-    jobId: z.string().cuid('Invalid Job ID'),
+  body: z.object({
+    jobId: z.string(),
   }),
 });
 
 export const isJobBookmarkedSchema = z.object({
-  params: z.object({
-    jobId: z.string().cuid('Invalid Job ID'),
+  query: z.object({
+    jobId: z.string(),
   }),
+});
+
+export const getBookmarkedJobsSchema = z.object({
+  query: jobPaginationSchema,
 });

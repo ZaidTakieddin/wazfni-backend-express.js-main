@@ -27,6 +27,38 @@ Authorization: Bearer <your_jwt_token>
 - [Bookmark Routes](#bookmark-routes)
 - [Profile Management Routes](#profile-management-routes)
 - [User Behavior Tracking Routes](#user-behavior-tracking-routes)
+- [Pagination](#pagination)
+
+---
+
+## 📄 **Pagination**
+
+All list endpoints support pagination with the following query parameters:
+
+### **Standard Pagination Parameters**
+
+- `page` (optional): Page number (default: 1, minimum: 1)
+- `limit` (optional): Items per page (default: 10, minimum: 1, maximum: 100)
+- `sortBy` (optional): Sort field (varies by endpoint, see specific endpoint documentation)
+- `sortOrder` (optional): Sort direction - `asc` or `desc` (default: desc)
+
+### **Standard Pagination Response**
+
+All paginated endpoints return data in this format:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 150,
+    "totalPages": 15,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ---
 
@@ -180,10 +212,8 @@ Authorization: Bearer <your_jwt_token>
 - **Endpoint:** `/admin/users`
 - **Auth Required:** ✅ Yes (Admin only)
 - **Query Parameters:**
-  - `page` (optional): Page number (default: 1)
-  - `limit` (optional): Items per page (default: 10, max: 100)
-  - `sortBy` (optional): Sort field - `createdAt`, `updatedAt`, `email`, `role`, `isVerified`, `lastLogin`
-  - `sortOrder` (optional): `asc` or `desc` (default: desc)
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `email`, `role`, `isVerified`, `lastLogin` (default: createdAt)
   - `role` (optional): Filter by role - `USER` or `ADMIN`
   - `isVerified` (optional): Filter by verification status - `true` or `false`
   - `search` (optional): Search by email, firstName, or lastName
@@ -191,7 +221,7 @@ Authorization: Bearer <your_jwt_token>
 
 ```json
 {
-  "users": [
+  "data": [
     {
       "id": "user_id",
       "email": "user@example.com",
@@ -226,7 +256,9 @@ Authorization: Bearer <your_jwt_token>
     "page": 1,
     "limit": 10,
     "total": 150,
-    "pages": 15
+    "totalPages": 15,
+    "hasNext": true,
+    "hasPrev": false
   }
 }
 ```
@@ -415,13 +447,44 @@ Authorization: Bearer <your_jwt_token>
 - **Endpoint:** `/`
 - **Auth Required:** ✅ Yes
 - **Query Parameters:**
-  - `page` (optional): Page number
-  - `limit` (optional): Items per page
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
   - `subCategory` (optional): Filter by subcategory name
   - `subCategoryId` (optional): Filter by subcategory ID
   - `workType` (optional): FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP
   - `contractType` (optional): REMOTE, HYBRID, ON_SITE
   - `experienceLevel` (optional): ENTRY, JUNIOR, MID, SENIOR, LEAD, MANAGER, EXPERT
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "job_id",
+      "jobTitle": "Senior Developer",
+      "company": {
+        "name": "Tech Corp",
+        "logo": "path/to/logo.jpg"
+      },
+      "workType": "FULL_TIME",
+      "contractType": "REMOTE",
+      "experienceLevel": "SENIOR",
+      "minSalary": 5000,
+      "maxSalary": 8000,
+      "currency": "USD",
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 50,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Search Jobs**
 
@@ -429,6 +492,8 @@ Authorization: Bearer <your_jwt_token>
 - **Endpoint:** `/search`
 - **Auth Required:** ❌ No
 - **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
   - `q` (optional): Search query
   - `subCategory` (optional): Filter by subcategory name (partial match)
   - `subCategoryId` (optional): Filter by specific subcategory ID (exact match)
@@ -437,8 +502,6 @@ Authorization: Bearer <your_jwt_token>
   - `experienceLevel` (optional): Experience level filter
   - `minSalary` (optional): Minimum salary
   - `maxSalary` (optional): Maximum salary
-  - `page` (optional): Page number
-  - `limit` (optional): Items per page
 
 ### **Create Job Post**
 
@@ -471,14 +534,20 @@ Authorization: Bearer <your_jwt_token>
 - **Method:** `GET`
 - **Endpoint:** `/company`
 - **Auth Required:** ✅ Yes (Company required)
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:** Paginated list of company's jobs
 
 ### **Get My Company Jobs by Status**
 
 - **Method:** `GET`
 - **Endpoint:** `/company/pending` | `/company/approved` | `/company/rejected` | `/company/archived`
 - **Auth Required:** ✅ Yes (Company required)
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:** Paginated list of company's jobs filtered by status
 
 ### **Get Single Job**
 
@@ -519,7 +588,36 @@ Authorization: Bearer <your_jwt_token>
 - **Method:** `GET`
 - **Endpoint:** `/`
 - **Auth Required:** ❌ No
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `name`, `createdAt`, `updatedAt` (default: name)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "category_id",
+      "name": "تكنولوجيا المعلومات",
+      "icon": "tech-icon",
+      "subCategories": [
+        {
+          "id": "subcategory_id",
+          "name": "تطوير الويب"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 15,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Create Category (Admin Only)**
 
@@ -561,7 +659,33 @@ Authorization: Bearer <your_jwt_token>
 - **Method:** `GET`
 - **Endpoint:** `/:categoryId/subcategories`
 - **Auth Required:** ❌ No
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `name`, `createdAt`, `updatedAt` (default: name)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "subcategory_id",
+      "name": "تطوير الويب",
+      "category": {
+        "id": "category_id",
+        "name": "تكنولوجيا المعلومات"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 8,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Create Subcategory (Admin Only)**
 
@@ -616,7 +740,38 @@ Authorization: Bearer <your_jwt_token>
 - **Method:** `GET`
 - **Endpoint:** `/company/job/:jobId`
 - **Auth Required:** ✅ Yes (Company required)
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `appliedAt`, `updatedAt`, `status` (default: appliedAt)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "application_id",
+      "applicant": {
+        "id": "user_id",
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com"
+      },
+      "status": "PENDING",
+      "appliedAt": "2024-01-01T00:00:00Z",
+      "answers": ["Answer 1", "Answer 2"],
+      "cvPath": "path/to/cv.pdf"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Get Single Application**
 
@@ -630,7 +785,10 @@ Authorization: Bearer <your_jwt_token>
 - **Method:** `GET`
 - **Endpoint:** `/user/applications`
 - **Auth Required:** ✅ Yes
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `appliedAt`, `updatedAt`, `status` (default: appliedAt)
+- **Response:** Paginated list of user's applications
 
 ### **Update Application Status**
 
@@ -654,13 +812,31 @@ Authorization: Bearer <your_jwt_token>
 
 ### **Company Approval**
 
+#### **Get Pending Companies**
+
 - **Method:** `GET`
-- **Endpoint:** `/companies/pending` | `/companies/all`
-- **Body:** None
+- **Endpoint:** `/companies/pending`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `name`, `workField`, `city`, `approvalStatus` (default: createdAt)
+- **Response:** Paginated list of pending companies
+
+#### **Get All Companies**
+
+- **Method:** `GET`
+- **Endpoint:** `/companies/all`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `name`, `workField`, `city`, `approvalStatus` (default: createdAt)
+- **Response:** Paginated list of all companies
+
+#### **Get Company Details**
 
 - **Method:** `GET`
 - **Endpoint:** `/companies/:companyId`
 - **Body:** None
+
+#### **Approve/Reject Company**
 
 - **Method:** `PATCH`
 - **Endpoint:** `/companies/:companyId/approve` | `/companies/:companyId/reject`
@@ -674,13 +850,31 @@ Authorization: Bearer <your_jwt_token>
 
 ### **Job Approval**
 
+#### **Get Pending Jobs**
+
 - **Method:** `GET`
-- **Endpoint:** `/jobs/pending` | `/jobs/all`
-- **Body:** None
+- **Endpoint:** `/jobs/pending`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:** Paginated list of pending jobs
+
+#### **Get All Jobs**
+
+- **Method:** `GET`
+- **Endpoint:** `/jobs/all`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:** Paginated list of all jobs
+
+#### **Get Job Details**
 
 - **Method:** `GET`
 - **Endpoint:** `/jobs/:jobId`
 - **Body:** None
+
+#### **Approve/Reject Job**
 
 - **Method:** `PATCH`
 - **Endpoint:** `/jobs/:jobId/approve` | `/jobs/:jobId/reject`
@@ -746,7 +940,41 @@ Authorization: Bearer <your_jwt_token>
 
 - **Method:** `GET`
 - **Endpoint:** `/jobs`
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "job_id",
+      "jobTitle": "Senior Developer",
+      "company": {
+        "name": "Tech Corp",
+        "logo": "path/to/logo.jpg"
+      },
+      "workType": "FULL_TIME",
+      "contractType": "REMOTE",
+      "experienceLevel": "SENIOR",
+      "minSalary": 5000,
+      "maxSalary": 8000,
+      "currency": "USD",
+      "bookmarkedAt": "2024-01-01T00:00:00Z",
+      "isBookmarked": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 20,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Check Bookmark Status**
 
@@ -764,42 +992,115 @@ Authorization: Bearer <your_jwt_token>
 
 **Base Path:** `/api/v1/profile/work-experience`
 
-- **Method:** `POST` | `GET`
+#### **Create Work Experience**
+
+- **Method:** `POST`
 - **Endpoint:** `/`
-- **Body:** For POST:
+- **Body:**
 
 ```json
 {
   "jobTitle": "Software Engineer",
   "companyName": "Tech Corp",
-  "startDate": "2020-01-01",
-  "endDate": "2023-01-01",
+  "startDate": "2020-01-01T00:00:00Z",
+  "endDate": "2023-01-01T00:00:00Z",
   "description": "Developed web applications",
   "current": false
 }
 ```
 
+#### **Get My Work Experiences**
+
+- **Method:** `GET`
+- **Endpoint:** `/`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `startDate`, `createdAt`, `updatedAt`, `name` (default: startDate)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "experience_id",
+      "jobTitle": "Software Engineer",
+      "companyName": "Tech Corp",
+      "startDate": "2020-01-01T00:00:00Z",
+      "endDate": "2023-01-01T00:00:00Z",
+      "description": "Developed web applications",
+      "current": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+#### **Work Experience Operations**
+
 - **Method:** `GET` | `PATCH` | `DELETE`
-- **Endpoint:** `/:experienceId`
+- **Endpoint:** `/:workExperienceId`
 - **Body:** For PATCH: Same as POST (all fields optional)
 
 ### **Education Certificates**
 
 **Base Path:** `/api/v1/profile/education-certificates`
 
-- **Method:** `POST` | `GET`
+#### **Create Education Certificate**
+
+- **Method:** `POST`
 - **Endpoint:** `/`
-- **Body:** For POST:
+- **Body:**
 
 ```json
 {
   "degree": "Bachelor of Computer Science",
   "university": "Cairo University",
   "certificateName": "Computer Science Degree",
-  "startDate": "2016-09-01",
-  "endDate": "2020-06-01"
+  "startDate": "2016-09-01T00:00:00Z",
+  "endDate": "2020-06-01T00:00:00Z"
 }
 ```
+
+#### **Get My Education Certificates**
+
+- **Method:** `GET`
+- **Endpoint:** `/`
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `startDate`, `createdAt`, `updatedAt`, `name` (default: startDate)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "certificate_id",
+      "degree": "Bachelor of Computer Science",
+      "university": "Cairo University",
+      "certificateName": "Computer Science Degree",
+      "startDate": "2016-09-01T00:00:00Z",
+      "endDate": "2020-06-01T00:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+#### **Education Certificate Operations**
 
 - **Method:** `GET` | `PATCH` | `DELETE`
 - **Endpoint:** `/:certificateId`
@@ -815,29 +1116,154 @@ Authorization: Bearer <your_jwt_token>
 
 **Base Path:** `/api/v1/category-clicks`
 
+#### **Record Category Click**
+
 - **Method:** `POST`
 - **Endpoint:** `/:subCategoryId`
 - **Body:** None
 
+#### **Get My Category Clicks**
+
 - **Method:** `GET`
 - **Endpoint:** `/my-clicks`
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `lastClickedAt`, `createdAt`, `updatedAt`, `name` (default: lastClickedAt)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "click_id",
+      "clickCount": 5,
+      "lastClickedAt": "2024-01-01T00:00:00Z",
+      "subCategory": {
+        "name": "تطوير الويب",
+        "category": {
+          "name": "تكنولوجيا المعلومات"
+        }
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 12,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ### **Job View History**
 
 **Base Path:** `/api/v1/job-views`
 
+#### **Record Job View**
+
 - **Method:** `POST`
 - **Endpoint:** `/:jobId`
 - **Body:** None
 
+#### **Get My Job Views**
+
 - **Method:** `GET`
 - **Endpoint:** `/my-views`
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `lastViewedAt`, `createdAt`, `updatedAt`, `name` (default: lastViewedAt)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "view_id",
+      "viewCount": 3,
+      "lastViewedAt": "2024-01-01T00:00:00Z",
+      "job": {
+        "id": "job_id",
+        "jobTitle": "Senior Developer",
+        "company": {
+          "name": "Tech Corp"
+        },
+        "workType": "FULL_TIME",
+        "contractType": "REMOTE",
+        "experienceLevel": "SENIOR",
+        "subCategories": [
+          {
+            "name": "تطوير الويب",
+            "category": {
+              "name": "تكنولوجيا المعلومات"
+            }
+          }
+        ],
+        "_count": {
+          "applications": 15
+        }
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+#### **Get Recommended Jobs**
 
 - **Method:** `GET`
 - **Endpoint:** `/recommended`
-- **Body:** None
+- **Query Parameters:**
+  - **Pagination:** `page`, `limit`, `sortOrder`
+  - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "job_id",
+      "jobTitle": "Frontend Developer",
+      "company": {
+        "name": "Web Solutions Inc"
+      },
+      "workType": "FULL_TIME",
+      "contractType": "HYBRID",
+      "experienceLevel": "MID",
+      "minSalary": 4000,
+      "maxSalary": 6000,
+      "currency": "USD",
+      "subCategories": [
+        {
+          "name": "تطوير الويب",
+          "category": {
+            "name": "تكنولوجيا المعلومات"
+          }
+        }
+      ],
+      "_count": {
+        "applications": 8
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 30,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
 
 ---
 
@@ -850,6 +1276,22 @@ Authorization: Bearer <your_jwt_token>
   "success": true,
   "data": { ... },
   "message": "Operation successful"
+}
+```
+
+### **Paginated Success Response**
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 150,
+    "totalPages": 15,
+    "hasNext": true,
+    "hasPrev": false
+  }
 }
 ```
 
@@ -928,6 +1370,13 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 
 ```bash
 curl -X GET http://localhost:3000/api/v1/users/profile/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+4. **Get paginated data:**
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/jobs?page=1&limit=20&sortBy=createdAt&sortOrder=desc" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 

@@ -6,15 +6,35 @@ import {
   NotificationService,
   NotificationTemplates,
 } from './notification.service';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 // Company Approval Services
 
 /**
- * Get all companies pending approval
+ * Get pending companies for admin approval with pagination
  */
-export const getPendingCompanies = async () => {
-  return prisma.company.findMany({
-    where: { approvalStatus: ApprovalStatus.PENDING },
+export const getPendingCompanies = async (
+  paginationOptions: PaginationOptions = {},
+) => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  const where = { approvalStatus: ApprovalStatus.PENDING };
+
+  // Get total count
+  const total = await prisma.company.count({ where });
+
+  // Get companies with pagination
+  const companies = await prisma.company.findMany({
+    where,
     include: {
       user: {
         select: {
@@ -25,15 +45,30 @@ export const getPendingCompanies = async () => {
         },
       },
     },
-    orderBy: { createdAt: 'asc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(companies, page, limit, total);
 };
 
 /**
- * Get all companies (approved, pending, rejected) for admin dashboard
+ * Get all companies (approved, pending, rejected) for admin dashboard with pagination
  */
-export const getAllCompaniesForAdmin = async () => {
-  return prisma.company.findMany({
+export const getAllCompaniesForAdmin = async (
+  paginationOptions: PaginationOptions = {},
+) => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  // Get total count
+  const total = await prisma.company.count();
+
+  // Get companies with pagination
+  const companies = await prisma.company.findMany({
     include: {
       user: {
         select: {
@@ -44,8 +79,12 @@ export const getAllCompaniesForAdmin = async () => {
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(companies, page, limit, total);
 };
 
 /**
@@ -142,14 +181,27 @@ export const rejectCompany = async (
 // Job Approval Services
 
 /**
- * Get all jobs pending approval
+ * Get all jobs pending approval with pagination
  */
-export const getPendingJobs = async () => {
-  return prisma.job.findMany({
-    where: {
-      approvalStatus: ApprovalStatus.PENDING,
-      company: { approvalStatus: ApprovalStatus.APPROVED }, // Only show jobs from approved companies
-    },
+export const getPendingJobs = async (
+  paginationOptions: PaginationOptions = {},
+) => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  const where = {
+    approvalStatus: ApprovalStatus.PENDING,
+    company: { approvalStatus: ApprovalStatus.APPROVED }, // Only show jobs from approved companies
+  };
+
+  // Get total count
+  const total = await prisma.job.count({ where });
+
+  // Get jobs with pagination
+  const jobs = await prisma.job.findMany({
+    where,
     include: {
       company: {
         select: {
@@ -168,15 +220,30 @@ export const getPendingJobs = async () => {
         },
       },
     },
-    orderBy: { createdAt: 'asc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(jobs, page, limit, total);
 };
 
 /**
- * Get all jobs (approved, pending, rejected) for admin dashboard
+ * Get all jobs (approved, pending, rejected) for admin dashboard with pagination
  */
-export const getAllJobsForAdmin = async () => {
-  return prisma.job.findMany({
+export const getAllJobsForAdmin = async (
+  paginationOptions: PaginationOptions = {},
+) => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  // Get total count
+  const total = await prisma.job.count();
+
+  // Get jobs with pagination
+  const jobs = await prisma.job.findMany({
     include: {
       company: {
         select: {
@@ -195,8 +262,12 @@ export const getAllJobsForAdmin = async () => {
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
+
+  return createPaginatedResponse(jobs, page, limit, total);
 };
 
 /**

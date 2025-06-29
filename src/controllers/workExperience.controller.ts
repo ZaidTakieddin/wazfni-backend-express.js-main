@@ -4,6 +4,7 @@ import * as userService from '../services/user.service';
 import * as workExperienceService from '../services/workExperience.service';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
+import { parsePaginationOptions } from '../utils/pagination';
 
 // Helper to get user ID and profile ID, ensuring user is authenticated
 const getProfileIdFromRequest = async (req: Request): Promise<string> => {
@@ -28,22 +29,29 @@ export const createWorkExperience = catchAsync(
 export const getMyWorkExperiences = catchAsync(
   async (req: Request, res: Response) => {
     const userProfileId = await getProfileIdFromRequest(req);
+    const paginationOptions = parsePaginationOptions(req.query, 'startDate');
     const experiences =
-      await workExperienceService.getWorkExperiencesByProfileId(userProfileId);
+      await workExperienceService.getWorkExperiencesByProfileId(
+        userProfileId,
+        paginationOptions,
+      );
     res.send(experiences);
   },
 );
 
 export const getWorkExperience = catchAsync(
   async (req: Request, res: Response) => {
-    const { experienceId } = req.params;
-    if (!experienceId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Experience ID is required');
+    const { workExperienceId } = req.params;
+    if (!workExperienceId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Work Experience ID is required',
+      );
     }
     const userProfileId = await getProfileIdFromRequest(req);
     const experience = await workExperienceService.getWorkExperienceById(
       userProfileId,
-      experienceId,
+      workExperienceId,
     );
     res.send(experience);
   },
@@ -51,14 +59,17 @@ export const getWorkExperience = catchAsync(
 
 export const updateWorkExperience = catchAsync(
   async (req: Request, res: Response) => {
-    const { experienceId } = req.params;
-    if (!experienceId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Experience ID is required');
+    const { workExperienceId } = req.params;
+    if (!workExperienceId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Work Experience ID is required',
+      );
     }
     const userProfileId = await getProfileIdFromRequest(req);
     const experience = await workExperienceService.updateWorkExperienceById(
       userProfileId,
-      experienceId,
+      workExperienceId,
       req.body,
     );
     res.send(experience);
@@ -67,14 +78,17 @@ export const updateWorkExperience = catchAsync(
 
 export const deleteWorkExperience = catchAsync(
   async (req: Request, res: Response) => {
-    const { experienceId } = req.params;
-    if (!experienceId) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Experience ID is required');
+    const { workExperienceId } = req.params;
+    if (!workExperienceId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Work Experience ID is required',
+      );
     }
     const userProfileId = await getProfileIdFromRequest(req);
     await workExperienceService.deleteWorkExperienceById(
       userProfileId,
-      experienceId,
+      workExperienceId,
     );
     res.status(httpStatus.NO_CONTENT).send();
   },

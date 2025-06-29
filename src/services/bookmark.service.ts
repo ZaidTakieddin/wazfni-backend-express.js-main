@@ -2,6 +2,13 @@ import { Prisma, ApprovalStatus } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
+import {
+  PaginationOptions,
+  PaginatedResponse,
+  parsePaginationOptions,
+  calculateSkip,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 /**
  * Bookmark a job for a user
@@ -104,48 +111,65 @@ export const unbookmarkJob = async (
 };
 
 /**
- * Get all bookmarked jobs for a user
+ * Get all bookmarked jobs for a user with pagination.
  * @param userId - The ID of the user
- * @returns {Promise<Array>}
+ * @param paginationOptions - Pagination options
+ * @returns {Promise<PaginatedResponse<any>>}
  */
-export const getBookmarkedJobs = async (userId: string) => {
-  const bookmarks = await prisma.bookmark.findMany({
-    where: {
-      userId,
-      job: {
+export const getBookmarkedJobs = async (
+  userId: string,
+  paginationOptions: PaginationOptions = {},
+): Promise<PaginatedResponse<any>> => {
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+    paginationOptions,
+    'createdAt',
+  );
+
+  const where = {
+    userId,
+    job: {
+      isArchived: false,
+      approvalStatus: ApprovalStatus.APPROVED,
+      company: {
         approvalStatus: ApprovalStatus.APPROVED,
-        company: {
-          approvalStatus: ApprovalStatus.APPROVED,
-        },
       },
     },
+  };
+
+  // Get total count
+  const total = await prisma.bookmark.count({ where });
+
+  // Get bookmarks with job details and pagination
+  const bookmarks = await prisma.bookmark.findMany({
+    where,
     include: {
       job: {
         include: {
-          company: {
-            select: {
-              name: true,
-              logo: true,
-            },
-          },
+          company: true,
           subCategories: {
             include: {
               category: true,
             },
           },
+          _count: {
+            select: { applications: true },
+          },
         },
       },
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+    skip: calculateSkip(page, limit),
+    take: limit,
+    orderBy: { [sortBy]: sortOrder },
   });
 
-  return bookmarks.map((bookmark) => ({
+  // Transform the response to return jobs with bookmark metadata
+  const jobs = bookmarks.map((bookmark) => ({
     ...bookmark.job,
-    isBookmarked: true,
     bookmarkedAt: bookmark.createdAt,
+    isBookmarked: true,
   }));
+
+  return createPaginatedResponse(jobs, page, limit, total);
 };
 
 /**

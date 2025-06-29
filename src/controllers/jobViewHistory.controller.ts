@@ -3,6 +3,7 @@ import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 import httpStatus from 'http-status';
 import * as jobViewHistoryService from '../services/jobViewHistory.service';
+import { parsePaginationOptions } from '../utils/pagination';
 
 export const recordJobView = catchAsync(async (req: Request, res: Response) => {
   if (!req.user) {
@@ -15,7 +16,7 @@ export const recordJobView = catchAsync(async (req: Request, res: Response) => {
   }
 
   const userId = req.user.id;
-  const jobView = await jobViewHistoryService.recordJobView(userId, jobId);
+  const jobView = await jobViewHistoryService.createJobView(userId, jobId);
 
   res.status(200).json({
     status: 'success',
@@ -30,7 +31,11 @@ export const getUserJobViews = catchAsync(
     }
 
     const userId = req.user.id;
-    const jobViews = await jobViewHistoryService.getUserJobViews(userId);
+    const paginationOptions = parsePaginationOptions(req.query, 'lastViewedAt');
+    const jobViews = await jobViewHistoryService.getUserJobViewHistory(
+      userId,
+      paginationOptions,
+    );
 
     res.status(200).json({
       status: 'success',
@@ -46,8 +51,11 @@ export const getRecommendedJobs = catchAsync(
     }
 
     const userId = req.user.id;
-    const recommendedJobs =
-      await jobViewHistoryService.getRecommendedJobs(userId);
+    const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
+    const recommendedJobs = await jobViewHistoryService.getRecommendedJobs(
+      userId,
+      paginationOptions,
+    );
 
     res.status(200).json({
       status: 'success',
