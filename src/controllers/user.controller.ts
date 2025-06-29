@@ -17,6 +17,7 @@ export const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 // Update the profile of the currently logged-in user
 export const updateMyProfile = catchAsync(
   async (req: Request, res: Response) => {
+    // req.user is attached by the auth middleware
     if (!req.user) {
       throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication required');
     }
@@ -33,9 +34,10 @@ export const updateMyProfile = catchAsync(
 
     const updatedProfile = await userService.updateUserProfile(
       req.user.id,
-      req.body, // Contains text fields
-      filePaths, // Pass extracted file paths
+      req.body,
+      filePaths,
     );
+
     res.send(updatedProfile);
   },
 );
@@ -78,7 +80,88 @@ export const getUserProfileById = catchAsync(
   },
 );
 
-// In the future, you might add controllers for admins to manage other users:
-// export const getUser = catchAsync(async (req: Request, res: Response) => { ... });
-// export const updateUser = catchAsync(async (req: Request, res: Response) => { ... });
-// export const deleteUser = catchAsync(async (req: Request, res: Response) => { ... });
+// ===== ADMIN USER MANAGEMENT CONTROLLERS =====
+
+// Get all users with filtering and pagination (Admin only)
+export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
+  const { page, limit, sortBy, sortOrder, role, isVerified, search } =
+    req.query;
+
+  const filters = {
+    role: role as any,
+    isVerified: isVerified as any,
+    search: search as string,
+  };
+
+  const pagination = {
+    page: page as any,
+    limit: limit as any,
+    sortBy: sortBy as any,
+    sortOrder: sortOrder as any,
+  };
+
+  const result = await userService.getAllUsers(filters, pagination);
+  res.send(result);
+});
+
+// Create a new user (Admin only)
+export const createUser = catchAsync(async (req: Request, res: Response) => {
+  const user = await userService.createUser(req.body);
+  res.status(httpStatus.CREATED).send({
+    message: 'User created successfully',
+    user,
+  });
+});
+
+// Update a user (Admin only)
+export const updateUser = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User ID parameter is required');
+  }
+  const user = await userService.updateUser(userId, req.body);
+  res.send({
+    message: 'User updated successfully',
+    user,
+  });
+});
+
+// Delete a user (Admin only)
+export const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User ID parameter is required');
+  }
+  await userService.deleteUser(userId);
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
+// Get detailed user information (Admin only)
+export const getUserDetail = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User ID parameter is required');
+  }
+
+  // Get user with all related data
+  const user = await userService.getUserById(userId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  // Get user profile
+  const profile = await userService.getUserProfile(userId);
+
+  res.send({
+    user,
+    profile,
+  });
+});
+
+// Get user statistics (Admin only)
+export const getUserStatistics = catchAsync(
+  async (req: Request, res: Response) => {
+    const statistics = await userService.getUserStatistics();
+    res.send(statistics);
+  },
+);

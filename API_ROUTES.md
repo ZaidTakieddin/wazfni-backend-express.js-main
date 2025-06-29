@@ -105,14 +105,16 @@ Authorization: Bearer <your_jwt_token>
 
 **Base Path:** `/api/v1/users`
 
-### **Get My Profile**
+### **🔹 Regular User Profile Routes**
+
+#### **Get My Profile**
 
 - **Method:** `GET`
 - **Endpoint:** `/profile/me`
 - **Auth Required:** ✅ Yes
 - **Body:** None
 
-### **Update My Profile**
+#### **Update My Profile**
 
 - **Method:** `PATCH`
 - **Endpoint:** `/profile/me`
@@ -135,19 +137,225 @@ Authorization: Bearer <your_jwt_token>
 
 - **Files:** `avatar` (optional), `cv` (optional)
 
-### **Get User Profile by ID**
+#### **Get User Profile by ID**
 
 - **Method:** `GET`
 - **Endpoint:** `/:userId/profile`
 - **Auth Required:** ✅ Yes
 - **Body:** None
 
-### **Get User by ID**
+#### **Get User by ID**
 
 - **Method:** `GET`
 - **Endpoint:** `/:userId`
 - **Auth Required:** ✅ Yes
 - **Body:** None
+
+### **👨‍💼 Admin User Management Routes**
+
+#### **Get User Statistics**
+
+- **Method:** `GET`
+- **Endpoint:** `/admin/statistics`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Body:** None
+- **Response:**
+
+```json
+{
+  "totalUsers": 150,
+  "verifiedUsers": 120,
+  "unverifiedUsers": 30,
+  "adminUsers": 3,
+  "regularUsers": 147,
+  "usersWithCompanies": 45,
+  "usersWithoutCompanies": 105,
+  "recentUsers": 15
+}
+```
+
+#### **Get All Users**
+
+- **Method:** `GET`
+- **Endpoint:** `/admin/users`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Query Parameters:**
+  - `page` (optional): Page number (default: 1)
+  - `limit` (optional): Items per page (default: 10, max: 100)
+  - `sortBy` (optional): Sort field - `createdAt`, `updatedAt`, `email`, `role`, `isVerified`, `lastLogin`
+  - `sortOrder` (optional): `asc` or `desc` (default: desc)
+  - `role` (optional): Filter by role - `USER` or `ADMIN`
+  - `isVerified` (optional): Filter by verification status - `true` or `false`
+  - `search` (optional): Search by email, firstName, or lastName
+- **Response:**
+
+```json
+{
+  "users": [
+    {
+      "id": "user_id",
+      "email": "user@example.com",
+      "role": "USER",
+      "isVerified": true,
+      "lastLogin": "2024-01-01T00:00:00Z",
+      "firstName": "John",
+      "lastName": "Doe",
+      "phoneNumber": "+1234567890",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "profile": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "jobTitle": "Software Engineer",
+        "city": "Cairo",
+        "avatar": "path/to/avatar.jpg"
+      },
+      "company": {
+        "id": "company_id",
+        "name": "Tech Corp",
+        "workField": "Technology",
+        "approvalStatus": "APPROVED"
+      },
+      "_count": {
+        "applications": 5,
+        "bookmarks": 10
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 150,
+    "pages": 15
+  }
+}
+```
+
+#### **Create New User**
+
+- **Method:** `POST`
+- **Endpoint:** `/admin/users`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Body:**
+
+```json
+{
+  "email": "newuser@example.com",
+  "password": "password123",
+  "role": "USER",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "phoneNumber": "+1234567890",
+  "isVerified": true
+}
+```
+
+- **Response:**
+
+```json
+{
+  "message": "User created successfully",
+  "user": {
+    "id": "user_id",
+    "email": "newuser@example.com",
+    "role": "USER",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "phoneNumber": "+1234567890",
+    "isVerified": true,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### **Get User Details**
+
+- **Method:** `GET`
+- **Endpoint:** `/admin/users/:userId`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Body:** None
+- **Response:**
+
+```json
+{
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "role": "USER",
+    "isVerified": true,
+    "lastLogin": "2024-01-01T00:00:00Z",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+1234567890",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z"
+  },
+  "profile": {
+    "id": "profile_id",
+    "firstName": "John",
+    "lastName": "Doe",
+    "jobTitle": "Software Engineer",
+    "city": "Cairo",
+    "address": "123 Main St",
+    "birthDate": "1990-01-01T00:00:00Z",
+    "gender": "MALE",
+    "cv": "path/to/cv.pdf",
+    "avatar": "path/to/avatar.jpg",
+    "workExperiences": [...],
+    "educationCertificates": [...]
+  }
+}
+```
+
+#### **Update User**
+
+- **Method:** `PATCH`
+- **Endpoint:** `/admin/users/:userId`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Body:**
+
+```json
+{
+  "email": "updated@example.com",
+  "password": "newpassword123",
+  "role": "ADMIN",
+  "firstName": "Updated",
+  "lastName": "Name",
+  "phoneNumber": "+9876543210",
+  "isVerified": false
+}
+```
+
+- **Response:**
+
+```json
+{
+  "message": "User updated successfully",
+  "user": {
+    "id": "user_id",
+    "email": "updated@example.com",
+    "role": "ADMIN",
+    "firstName": "Updated",
+    "lastName": "Name",
+    "phoneNumber": "+9876543210",
+    "isVerified": false,
+    "updatedAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+#### **Delete User**
+
+- **Method:** `DELETE`
+- **Endpoint:** `/admin/users/:userId`
+- **Auth Required:** ✅ Yes (Admin only)
+- **Body:** None
+- **Response:** `204 No Content`
+- **Note:** This will permanently delete the user and all associated data including:
+  - User profile and uploaded files (CV, avatar)
+  - Company data and logo (if user owns a company)
+  - All applications, bookmarks, and activity history
 
 ---
 

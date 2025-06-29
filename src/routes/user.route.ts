@@ -4,12 +4,20 @@ import validate from '../middlewares/validate';
 import {
   updateUserProfileSchema,
   getUserSchema,
+  getAllUsersSchema,
+  createUserSchema,
+  updateUserSchema,
+  deleteUserSchema,
+  getUserDetailSchema,
 } from '../validations/user.validation';
 import * as userController from '../controllers/user.controller';
 import { uploadProfileFiles } from '../middlewares/upload';
 import authorize from '../middlewares/authorize';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
+
+// ===== PUBLIC USER ROUTES =====
 
 // Routes for the currently authenticated user's profile
 router
@@ -37,10 +45,52 @@ router
 // .patch(...) // Future implementation for admin updating user
 // .delete(...) // Future implementation for admin deleting user
 
-// Future routes for admin managing users could go here or in a separate admin route file
-// router.route('/:userId')
-//   .get(auth, /* authorize('admin'), */ userController.getUser)
-//   .patch(auth, /* authorize('admin'), */ validate(...), userController.updateUser)
-//   .delete(auth, /* authorize('admin'), */ userController.deleteUser);
+// ===== ADMIN USER MANAGEMENT ROUTES =====
+
+// Admin statistics endpoint
+router.get(
+  '/admin/statistics',
+  auth,
+  authorize([Role.ADMIN]),
+  userController.getUserStatistics,
+);
+
+// Admin routes for managing all users
+router
+  .route('/admin/users')
+  .get(
+    auth,
+    authorize([Role.ADMIN]),
+    validate(getAllUsersSchema),
+    userController.getAllUsers,
+  )
+  .post(
+    auth,
+    authorize([Role.ADMIN]),
+    validate(createUserSchema),
+    userController.createUser,
+  );
+
+// Admin routes for managing specific users
+router
+  .route('/admin/users/:userId')
+  .get(
+    auth,
+    authorize([Role.ADMIN]),
+    validate(getUserDetailSchema),
+    userController.getUserDetail,
+  )
+  .patch(
+    auth,
+    authorize([Role.ADMIN]),
+    validate(updateUserSchema),
+    userController.updateUser,
+  )
+  .delete(
+    auth,
+    authorize([Role.ADMIN]),
+    validate(deleteUserSchema),
+    userController.deleteUser,
+  );
 
 export default router;
