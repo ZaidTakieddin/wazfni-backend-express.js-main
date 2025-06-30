@@ -6,7 +6,7 @@ export const createWorkExperienceSchema = z.object({
     jobTitle: z.string().min(1, 'Job title is required'),
     companyName: z.string().min(1, 'Company name is required'),
     startDate: z.string().datetime('Invalid start date'),
-    endDate: z.string().datetime('Invalid end date').optional(),
+    endDate: z.string().nullish(),
     description: z.string().optional(),
     current: z.boolean().optional(),
   }),
