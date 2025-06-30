@@ -13,10 +13,27 @@ export const createCategory = catchAsync(
 );
 
 export const getCategories = catchAsync(async (req: Request, res: Response) => {
-  const paginationOptions = parsePaginationOptions(req.query, 'name');
+  const paginationOptions = parsePaginationOptions(req.query, 'name') || {};
   const categories = await categoryService.getCategories(paginationOptions);
   res.send(categories);
 });
+
+/**
+ * Get categories with optional pagination.
+ * Supports both paginated and unpaginated responses.
+ */
+export const getCategoriesOptional = catchAsync(
+  async (req: Request, res: Response) => {
+    // Pass the entire query object to the service for optional pagination
+    const result = await categoryService.getCategoriesOptional(req.query);
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Categories retrieved successfully',
+      ...result, // This will be either { data } or { data, pagination }
+    });
+  },
+);
 
 export const getCategory = catchAsync(async (req: Request, res: Response) => {
   const categoryId = req.params.categoryId;
@@ -89,12 +106,40 @@ export const getSubCategoriesByCategory = catchAsync(
         'Category ID must be provided',
       );
     }
-    const paginationOptions = parsePaginationOptions(req.query, 'name');
+    const paginationOptions = parsePaginationOptions(req.query, 'name') || {};
     const subCategories = await categoryService.getSubCategoriesByCategory(
       categoryId,
       paginationOptions,
     );
     res.send(subCategories);
+  },
+);
+
+/**
+ * Get subcategories by category with optional pagination.
+ * Supports both paginated and unpaginated responses.
+ */
+export const getSubCategoriesByCategoryOptional = catchAsync(
+  async (req: Request, res: Response) => {
+    const categoryId = req.params.categoryId;
+    if (typeof categoryId !== 'string') {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Category ID must be provided',
+      );
+    }
+
+    // Pass the entire query object to the service for optional pagination
+    const result = await categoryService.getSubCategoriesByCategoryOptional(
+      categoryId,
+      req.query,
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Subcategories retrieved successfully',
+      ...result, // This will be either { data } or { data, pagination }
+    });
   },
 );
 

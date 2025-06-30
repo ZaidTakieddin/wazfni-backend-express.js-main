@@ -29,7 +29,8 @@ export const createWorkExperience = catchAsync(
 export const getMyWorkExperiences = catchAsync(
   async (req: Request, res: Response) => {
     const userProfileId = await getProfileIdFromRequest(req);
-    const paginationOptions = parsePaginationOptions(req.query, 'startDate');
+    const paginationOptions =
+      parsePaginationOptions(req.query, 'startDate') || {};
     const experiences =
       await workExperienceService.getWorkExperiencesByProfileId(
         userProfileId,

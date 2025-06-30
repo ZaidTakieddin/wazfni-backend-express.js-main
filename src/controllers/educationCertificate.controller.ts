@@ -30,7 +30,8 @@ export const createEducationCertificate = catchAsync(
 export const getMyEducationCertificates = catchAsync(
   async (req: Request, res: Response) => {
     const userProfileId = await getProfileIdFromRequest(req);
-    const paginationOptions = parsePaginationOptions(req.query, 'startDate');
+    const paginationOptions =
+      parsePaginationOptions(req.query, 'startDate') || {};
     const certificates =
       await educationCertificateService.getUserEducationCertificates(
         userProfileId,

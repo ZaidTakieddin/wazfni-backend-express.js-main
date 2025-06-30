@@ -12,7 +12,7 @@ export interface PaginationResult {
   page: number;
   limit: number;
   total: number;
-  pages: number;
+  totalPages: number;
   hasNext: boolean;
   hasPrev: boolean;
 }
@@ -22,6 +22,13 @@ export interface PaginatedResponse<T> {
   pagination: PaginationResult;
 }
 
+export interface UnpaginatedResponse<T> {
+  data: T[];
+}
+
+// Union type for either paginated or unpaginated response
+export type ListResponse<T> = PaginatedResponse<T> | UnpaginatedResponse<T>;
+
 // Default pagination values
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_LIMIT = 10;
@@ -29,19 +36,42 @@ export const MAX_LIMIT = 100;
 export const DEFAULT_SORT_ORDER = 'desc';
 
 /**
- * Parse and validate pagination parameters
+ * Parse pagination options from query parameters
+ * Returns null if no pagination parameters are provided
  */
-export function parsePaginationOptions(
+export const parsePaginationOptions = (
+  query: any,
+  defaultSortBy: string = 'createdAt',
+): PaginationOptions | null => {
+  const { page, limit, sortBy, sortOrder } = query;
+
+  // Check if any pagination parameters are provided
+  const hasPaginationParams = page !== undefined || limit !== undefined;
+
+  if (!hasPaginationParams) {
+    // Return null if no pagination is requested
+    return null;
+  }
+
+  return {
+    page: page ? Math.max(1, parseInt(page as string)) : 1,
+    limit: limit ? Math.min(100, Math.max(1, parseInt(limit as string))) : 10,
+    sortBy: (sortBy as string) || defaultSortBy,
+    sortOrder: (sortOrder as 'asc' | 'desc') || 'desc',
+  };
+};
+
+/**
+ * Parse and validate pagination parameters - backward compatible version
+ */
+export function parsePaginationOptionsLegacy(
   options: PaginationOptions = {},
   defaultSortBy = 'createdAt',
 ): Required<PaginationOptions> {
-  const page = Math.max(1, options.page || DEFAULT_PAGE);
-  const limit = Math.min(
-    Math.max(1, options.limit || DEFAULT_LIMIT),
-    MAX_LIMIT,
-  );
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(Math.max(1, options.limit || 10), 100);
   const sortBy = options.sortBy || defaultSortBy;
-  const sortOrder = options.sortOrder || DEFAULT_SORT_ORDER;
+  const sortOrder = options.sortOrder || 'desc';
 
   return { page, limit, sortBy, sortOrder };
 }
@@ -49,44 +79,73 @@ export function parsePaginationOptions(
 /**
  * Calculate pagination metadata
  */
-export function calculatePagination(
+export const calculatePagination = (
   page: number,
   limit: number,
   total: number,
-): PaginationResult {
-  const pages = Math.ceil(total / limit);
-  const hasNext = page < pages;
-  const hasPrev = page > 1;
-
+): PaginationResult => {
+  const totalPages = Math.ceil(total / limit);
   return {
     page,
     limit,
     total,
-    pages,
-    hasNext,
-    hasPrev,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
   };
-}
+};
 
 /**
- * Calculate skip value for Prisma
+ * Calculate skip value for database queries
  */
-export function calculateSkip(page: number, limit: number): number {
+export const calculateSkip = (page: number, limit: number): number => {
   return (page - 1) * limit;
-}
+};
 
 /**
- * Create a paginated response
+ * Create paginated response
  */
-export function createPaginatedResponse<T>(
+export const createPaginatedResponse = <T>(
   data: T[],
   page: number,
   limit: number,
   total: number,
-): PaginatedResponse<T> {
-  const pagination = calculatePagination(page, limit, total);
-  return { data, pagination };
-}
+): PaginatedResponse<T> => {
+  return {
+    data,
+    pagination: calculatePagination(page, limit, total),
+  };
+};
+
+/**
+ * Create unpaginated response
+ */
+export const createUnpaginatedResponse = <T>(
+  data: T[],
+): UnpaginatedResponse<T> => {
+  return {
+    data,
+  };
+};
+
+/**
+ * Create list response (paginated or unpaginated based on options)
+ */
+export const createListResponse = <T>(
+  data: T[],
+  paginationOptions: PaginationOptions | null,
+  total?: number,
+): ListResponse<T> => {
+  if (paginationOptions && total !== undefined) {
+    return createPaginatedResponse(
+      data,
+      paginationOptions.page!,
+      paginationOptions.limit!,
+      total,
+    );
+  }
+  return createUnpaginatedResponse(data);
+};
 
 /**
  * Common pagination query schema for validation
@@ -102,17 +161,17 @@ export const paginationQuerySchema = z.object({
 });
 
 /**
- * Create pagination query schema with custom sortBy options
+ * Create pagination schema for validation with specific sort fields
  */
-export function createPaginationSchema(sortByOptions: string[]) {
+export const createPaginationSchema = (sortFields: string[]) => {
   return z.object({
     page: z.string().transform(Number).pipe(z.number().min(1)).optional(),
     limit: z
       .string()
       .transform(Number)
-      .pipe(z.number().min(1).max(MAX_LIMIT))
+      .pipe(z.number().min(1).max(100))
       .optional(),
-    sortBy: z.enum(sortByOptions as [string, ...string[]]).optional(),
+    sortBy: z.enum(sortFields as [string, ...string[]]).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
   });
-}
+};

@@ -19,7 +19,7 @@ import {
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -190,7 +190,7 @@ export const getApplicationsForJob = async (
     );
   }
 
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'appliedAt',
   );

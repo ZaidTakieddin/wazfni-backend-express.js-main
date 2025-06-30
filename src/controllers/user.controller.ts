@@ -93,7 +93,8 @@ export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
     search: search as string,
   };
 
-  const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
+  const paginationOptions =
+    parsePaginationOptions(req.query, 'createdAt') || {};
 
   const result = await userService.getAllUsers(filters, paginationOptions);
   res.send(result);

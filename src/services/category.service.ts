@@ -5,9 +5,12 @@ import ApiError from '../utils/ApiError';
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  ListResponse,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
+  parsePaginationOptions,
+  createListResponse,
 } from '../utils/pagination';
 
 /**
@@ -36,7 +39,7 @@ export const createCategory = async (
 export const getCategories = async (
   paginationOptions: PaginationOptions = {},
 ): Promise<PaginatedResponse<Category & { subCategories: SubCategory[] }>> => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'name',
   );
@@ -206,7 +209,7 @@ export const getSubCategoriesByCategory = async (
     throw new ApiError(httpStatus.NOT_FOUND, 'Category not found');
   }
 
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'name',
   );
@@ -334,4 +337,98 @@ export const deleteSubCategory = async (
     }
     throw error;
   }
+};
+
+/**
+ * Get all categories with optional pagination.
+ * Returns paginated response if pagination params are provided, otherwise returns all data.
+ * @param query - Query parameters (including optional pagination)
+ * @returns Promise with categories list
+ */
+export const getCategoriesOptional = async (
+  query: any = {},
+): Promise<ListResponse<Category & { subCategories: SubCategory[] }>> => {
+  const paginationOptions = parsePaginationOptions(query, 'name');
+
+  const includeClause = {
+    subCategories: {
+      orderBy: { name: 'asc' as const },
+    },
+  };
+
+  let categories;
+  let total: number | undefined;
+
+  if (paginationOptions) {
+    // Paginated query
+    total = await prisma.category.count();
+
+    categories = await prisma.category.findMany({
+      include: includeClause,
+      skip: calculateSkip(paginationOptions.page!, paginationOptions.limit!),
+      take: paginationOptions.limit!,
+      orderBy: { [paginationOptions.sortBy!]: paginationOptions.sortOrder! },
+    });
+  } else {
+    // Non-paginated query - return all data
+    categories = await prisma.category.findMany({
+      include: includeClause,
+      orderBy: { name: 'asc' }, // Default sorting
+    });
+  }
+
+  return createListResponse(categories, paginationOptions, total);
+};
+
+/**
+ * Get subcategories by category with optional pagination.
+ * Returns paginated response if pagination params are provided, otherwise returns all data.
+ * @param categoryId - Category ID
+ * @param query - Query parameters (including optional pagination)
+ * @returns Promise with subcategories list
+ */
+export const getSubCategoriesByCategoryOptional = async (
+  categoryId: string,
+  query: any = {},
+): Promise<ListResponse<SubCategory & { category: Category }>> => {
+  // First check if category exists
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+  });
+
+  if (!category) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Category not found');
+  }
+
+  const paginationOptions = parsePaginationOptions(query, 'name');
+  const where = { categoryId };
+
+  let subCategories;
+  let total: number | undefined;
+
+  if (paginationOptions) {
+    // Paginated query
+    total = await prisma.subCategory.count({ where });
+
+    subCategories = await prisma.subCategory.findMany({
+      where,
+      include: {
+        category: true,
+      },
+      skip: calculateSkip(paginationOptions.page!, paginationOptions.limit!),
+      take: paginationOptions.limit!,
+      orderBy: { [paginationOptions.sortBy!]: paginationOptions.sortOrder! },
+    });
+  } else {
+    // Non-paginated query - return all data
+    subCategories = await prisma.subCategory.findMany({
+      where,
+      include: {
+        category: true,
+      },
+      orderBy: { name: 'asc' }, // Default sorting
+    });
+  }
+
+  return createListResponse(subCategories, paginationOptions, total);
 };

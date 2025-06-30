@@ -7,8 +7,15 @@ import prisma from '../config/prisma'; // Needed to get companyId
 
 export const getJobs = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id; // Optional user ID from auth
-  const jobs = await jobService.getJobs(userId);
-  res.send(jobs);
+
+  // Pass the entire query object to the service for optional pagination
+  const result = await jobService.getJobs(userId, req.query);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Jobs retrieved successfully',
+    ...result, // This will be either { data } or { data, pagination }
+  });
 });
 
 // Helper function to get companyId for the logged-in user

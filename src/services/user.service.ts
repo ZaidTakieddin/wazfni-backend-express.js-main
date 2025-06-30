@@ -10,7 +10,7 @@ import ApiError from '../utils/ApiError';
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -262,7 +262,7 @@ export const getAllUsers = async (
   filters: UserFilters = {},
   paginationOptions: PaginationOptions = {},
 ): Promise<PaginatedResponse<any>> => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );

@@ -1,33 +1,32 @@
-import { Prisma, ApprovalStatus } from '@prisma/client';
+import { Bookmark, ApprovalStatus } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
 import {
   PaginationOptions,
-  PaginatedResponse,
+  ListResponse,
   parsePaginationOptions,
   calculateSkip,
-  createPaginatedResponse,
+  createListResponse,
 } from '../utils/pagination';
 
 /**
- * Bookmark a job for a user
- * @param userId - The ID of the user
- * @param jobId - The ID of the job to bookmark
- * @returns {Promise<{ id: string }>}
+ * Bookmark a job for a user.
+ * @param userId
+ * @param jobId
+ * @returns {Promise<Bookmark>}
  * @throws {ApiError}
  */
 export const bookmarkJob = async (
   userId: string,
-  jobId?: string,
-): Promise<{ id: string }> => {
-  if (!jobId) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
-  }
-  // Check if job exists and is approved
+  jobId: string,
+): Promise<Bookmark> => {
+  // 1. Check if job exists and is approved
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: {
+    select: {
+      id: true,
+      approvalStatus: true,
       company: {
         select: { approvalStatus: true },
       },
@@ -45,46 +44,47 @@ export const bookmarkJob = async (
   ) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      'Cannot bookmark unapproved job',
+      'Can only bookmark approved jobs from approved companies',
     );
   }
 
-  // Create bookmark
-  try {
-    await prisma.bookmark.create({
-      data: {
-        user: { connect: { id: userId } },
-        job: { connect: { id: jobId } },
+  // 2. Check if already bookmarked
+  const existingBookmark = await prisma.bookmark.findUnique({
+    where: {
+      userId_jobId: {
+        userId,
+        jobId,
       },
-    });
-    return { id: jobId };
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        throw new ApiError(
-          httpStatus.CONFLICT,
-          'You have already bookmarked this job',
-        );
-      }
-    }
-    throw error;
+    },
+  });
+
+  if (existingBookmark) {
+    throw new ApiError(httpStatus.CONFLICT, 'Job is already bookmarked');
   }
+
+  // 3. Create bookmark
+  const bookmark = await prisma.bookmark.create({
+    data: {
+      userId,
+      jobId,
+    },
+  });
+
+  return bookmark;
 };
 
 /**
- * Remove a job bookmark for a user
- * @param userId - The ID of the user
- * @param jobId - The ID of the job to unbookmark
- * @returns {Promise<{ id: string }>}
+ * Remove a bookmark for a user.
+ * @param userId
+ * @param jobId
+ * @returns {Promise<void>}
  * @throws {ApiError}
  */
 export const unbookmarkJob = async (
   userId: string,
-  jobId?: string,
-): Promise<{ id: string }> => {
-  if (!jobId) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
-  }
+  jobId: string,
+): Promise<void> => {
+  // Check if bookmark exists
   const bookmark = await prisma.bookmark.findUnique({
     where: {
       userId_jobId: {
@@ -95,35 +95,51 @@ export const unbookmarkJob = async (
   });
 
   if (!bookmark) {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      'Bookmark not found or already removed',
-    );
+    throw new ApiError(httpStatus.NOT_FOUND, 'Bookmark not found');
   }
 
+  // Delete bookmark
   await prisma.bookmark.delete({
     where: {
       id: bookmark.id,
     },
   });
-
-  return { id: jobId };
 };
 
 /**
- * Get all bookmarked jobs for a user with pagination.
- * @param userId - The ID of the user
- * @param paginationOptions - Pagination options
- * @returns {Promise<PaginatedResponse<any>>}
+ * Check if a job is bookmarked by a user.
+ * @param userId
+ * @param jobId
+ * @returns {Promise<boolean>}
+ */
+export const isJobBookmarked = async (
+  userId: string,
+  jobId: string,
+): Promise<boolean> => {
+  const bookmark = await prisma.bookmark.findUnique({
+    where: {
+      userId_jobId: {
+        userId,
+        jobId,
+      },
+    },
+  });
+
+  return !!bookmark;
+};
+
+/**
+ * Get all bookmarked jobs for a user with optional pagination.
+ * Returns paginated response if pagination params are provided, otherwise returns all data.
+ * @param userId
+ * @param query - Query parameters (including optional pagination)
+ * @returns {Promise<ListResponse<any>>}
  */
 export const getBookmarkedJobs = async (
   userId: string,
-  paginationOptions: PaginationOptions = {},
-): Promise<PaginatedResponse<any>> => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
-    paginationOptions,
-    'createdAt',
-  );
+  query: any = {},
+): Promise<ListResponse<any>> => {
+  const paginationOptions = parsePaginationOptions(query, 'createdAt');
 
   const where = {
     userId,
@@ -136,31 +152,44 @@ export const getBookmarkedJobs = async (
     },
   };
 
-  // Get total count
-  const total = await prisma.bookmark.count({ where });
-
-  // Get bookmarks with job details and pagination
-  const bookmarks = await prisma.bookmark.findMany({
-    where,
-    include: {
-      job: {
-        include: {
-          company: true,
-          subCategories: {
-            include: {
-              category: true,
-            },
+  const includeClause = {
+    job: {
+      include: {
+        company: true,
+        subCategories: {
+          include: {
+            category: true,
           },
-          _count: {
-            select: { applications: true },
-          },
+        },
+        _count: {
+          select: { applications: true },
         },
       },
     },
-    skip: calculateSkip(page, limit),
-    take: limit,
-    orderBy: { [sortBy]: sortOrder },
-  });
+  };
+
+  let bookmarks;
+  let total: number | undefined;
+
+  if (paginationOptions) {
+    // Paginated query
+    total = await prisma.bookmark.count({ where });
+
+    bookmarks = await prisma.bookmark.findMany({
+      where,
+      include: includeClause,
+      skip: calculateSkip(paginationOptions.page!, paginationOptions.limit!),
+      take: paginationOptions.limit!,
+      orderBy: { [paginationOptions.sortBy!]: paginationOptions.sortOrder! },
+    });
+  } else {
+    // Non-paginated query - return all data
+    bookmarks = await prisma.bookmark.findMany({
+      where,
+      include: includeClause,
+      orderBy: { createdAt: 'desc' }, // Default sorting
+    });
+  }
 
   // Transform the response to return jobs with bookmark metadata
   const jobs = bookmarks.map((bookmark) => ({
@@ -169,30 +198,5 @@ export const getBookmarkedJobs = async (
     isBookmarked: true,
   }));
 
-  return createPaginatedResponse(jobs, page, limit, total);
-};
-
-/**
- * Check if a job is bookmarked by a user
- * @param userId - The ID of the user
- * @param jobId - The ID of the job to check
- * @returns {Promise<boolean>}
- */
-export const isJobBookmarked = async (
-  userId: string,
-  jobId?: string,
-): Promise<boolean> => {
-  if (!jobId) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
-  }
-  const bookmark = await prisma.bookmark.findUnique({
-    where: {
-      userId_jobId: {
-        userId,
-        jobId,
-      },
-    },
-  });
-
-  return !!bookmark;
+  return createListResponse(jobs, paginationOptions, total);
 };

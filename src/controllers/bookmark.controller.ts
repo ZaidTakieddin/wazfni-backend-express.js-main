@@ -1,57 +1,96 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
-import * as bookmarkService from '../services/bookmark.service';
 import ApiError from '../utils/ApiError';
-import { parsePaginationOptions } from '../utils/pagination';
+import * as bookmarkService from '../services/bookmark.service';
 
+/**
+ * Bookmark a job
+ */
 export const bookmarkJob = catchAsync(async (req: Request, res: Response) => {
-  const { jobId } = req.params;
   const userId = req.user?.id;
+  const { jobId } = req.body;
+
   if (!userId) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated');
   }
-  const result = await bookmarkService.bookmarkJob(userId, jobId);
-  res.status(httpStatus.CREATED).send(result);
+
+  const bookmark = await bookmarkService.bookmarkJob(userId, jobId);
+
+  res.status(httpStatus.CREATED).json({
+    success: true,
+    message: 'Job bookmarked successfully',
+    data: bookmark,
+  });
 });
 
+/**
+ * Remove a job bookmark
+ */
 export const unbookmarkJob = catchAsync(async (req: Request, res: Response) => {
-  const { jobId } = req.params;
   const userId = req.user?.id;
+  const { jobId } = req.params;
+
   if (!userId) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated');
   }
-  const result = await bookmarkService.unbookmarkJob(userId, jobId);
 
-  res.status(httpStatus.OK).send(result);
+  if (!jobId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
+  }
+
+  await bookmarkService.unbookmarkJob(userId, jobId);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Job unbookmarked successfully',
+  });
 });
 
+/**
+ * Get all bookmarked jobs for a user
+ * Supports optional pagination - if no pagination params provided, returns all data
+ */
 export const getBookmarkedJobs = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user?.id;
+
     if (!userId) {
       throw new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated');
     }
 
-    // Parse pagination options from query parameters
-    const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
+    // Pass the entire query object to the service for optional pagination
+    const result = await bookmarkService.getBookmarkedJobs(userId, req.query);
 
-    const result = await bookmarkService.getBookmarkedJobs(
-      userId,
-      paginationOptions,
-    );
-    res.send(result);
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Bookmarked jobs retrieved successfully',
+      ...result, // This will be either { data } or { data, pagination }
+    });
   },
 );
 
+/**
+ * Check if a job is bookmarked
+ */
 export const isJobBookmarked = catchAsync(
   async (req: Request, res: Response) => {
-    const { jobId } = req.params;
     const userId = req.user?.id;
+    const { jobId } = req.params;
+
     if (!userId) {
       throw new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated');
     }
-    const result = await bookmarkService.isJobBookmarked(userId, jobId);
-    res.send({ isBookmarked: result });
+
+    if (!jobId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Job ID is required');
+    }
+
+    const isBookmarked = await bookmarkService.isJobBookmarked(userId, jobId);
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      data: { isBookmarked },
+    });
   },
 );

@@ -5,7 +5,7 @@ import ApiError from '../utils/ApiError';
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -46,7 +46,7 @@ export const getWorkExperiencesByProfileId = async (
   userProfileId: string,
   paginationOptions: PaginationOptions = {},
 ): Promise<PaginatedResponse<WorkExperience>> => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'startDate',
   );

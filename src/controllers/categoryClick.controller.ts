@@ -37,10 +37,8 @@ export const getUserCategoryClicks = catchAsync(
     }
 
     const userId = req.user.id;
-    const paginationOptions = parsePaginationOptions(
-      req.query,
-      'lastClickedAt',
-    );
+    const paginationOptions =
+      parsePaginationOptions(req.query, 'lastClickedAt') || {};
 
     const categoryClicks = await categoryClickService.getUserCategoryClicks(
       userId,

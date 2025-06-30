@@ -31,7 +31,8 @@ export const getUserJobViews = catchAsync(
     }
 
     const userId = req.user.id;
-    const paginationOptions = parsePaginationOptions(req.query, 'lastViewedAt');
+    const paginationOptions =
+      parsePaginationOptions(req.query, 'lastViewedAt') || {};
     const jobViews = await jobViewHistoryService.getUserJobViewHistory(
       userId,
       paginationOptions,
@@ -51,7 +52,8 @@ export const getRecommendedJobs = catchAsync(
     }
 
     const userId = req.user.id;
-    const paginationOptions = parsePaginationOptions(req.query, 'createdAt');
+    const paginationOptions =
+      parsePaginationOptions(req.query, 'createdAt') || {};
     const recommendedJobs = await jobViewHistoryService.getRecommendedJobs(
       userId,
       paginationOptions,

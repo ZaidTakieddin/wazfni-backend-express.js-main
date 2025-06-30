@@ -9,7 +9,7 @@ import {
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -22,7 +22,7 @@ import {
 export const getPendingCompanies = async (
   paginationOptions: PaginationOptions = {},
 ) => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );
@@ -59,7 +59,7 @@ export const getPendingCompanies = async (
 export const getAllCompaniesForAdmin = async (
   paginationOptions: PaginationOptions = {},
 ) => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );
@@ -186,7 +186,7 @@ export const rejectCompany = async (
 export const getPendingJobs = async (
   paginationOptions: PaginationOptions = {},
 ) => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );
@@ -234,7 +234,7 @@ export const getPendingJobs = async (
 export const getAllJobsForAdmin = async (
   paginationOptions: PaginationOptions = {},
 ) => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );

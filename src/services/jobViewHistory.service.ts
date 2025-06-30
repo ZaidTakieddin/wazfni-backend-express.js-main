@@ -11,7 +11,7 @@ import prisma from '../config/prisma';
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -80,7 +80,7 @@ export const getUserJobViewHistory = async (
     }
   >
 > => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'lastViewedAt',
   );
@@ -146,7 +146,7 @@ export const getRecommendedJobs = async (
     }
   >
 > => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'createdAt',
   );

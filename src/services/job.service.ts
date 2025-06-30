@@ -14,10 +14,10 @@ import {
 } from './notification.service';
 import {
   PaginationOptions,
-  PaginatedResponse,
+  ListResponse,
   parsePaginationOptions,
   calculateSkip,
-  createPaginatedResponse,
+  createListResponse,
 } from '../utils/pagination';
 
 // Interface for job creation input from the controller/validation
@@ -27,19 +27,17 @@ interface CreateJobInput
 }
 
 /**
- * Get all jobs with pagination.
+ * Get all jobs with optional pagination.
+ * Returns paginated response if pagination params are provided, otherwise returns all data.
  * @param userId - Optional user ID to check bookmark status
- * @param paginationOptions - Pagination options
- * @returns A paginated list of jobs with bookmark status if userId is provided
+ * @param query - Query parameters (including optional pagination)
+ * @returns Jobs list with bookmark status if userId is provided
  */
 export const getJobs = async (
   userId?: string,
-  paginationOptions: PaginationOptions = {},
-): Promise<PaginatedResponse<any>> => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
-    paginationOptions,
-    'createdAt',
-  );
+  query: any = {},
+): Promise<ListResponse<any>> => {
+  const paginationOptions = parsePaginationOptions(query, 'createdAt');
 
   const where: Prisma.JobWhereInput = {
     isArchived: false,
@@ -49,30 +47,43 @@ export const getJobs = async (
     },
   };
 
-  // Get total count
-  const total = await prisma.job.count({ where });
-
-  // Get jobs with pagination
-  const jobs = await prisma.job.findMany({
-    where,
-    include: {
-      company: true,
-      subCategories: {
-        include: {
-          category: true,
-        },
+  const includeClause = {
+    company: true,
+    subCategories: {
+      include: {
+        category: true,
       },
-      bookmarks: userId
-        ? {
-            where: { userId },
-            select: { id: true },
-          }
-        : undefined,
     },
-    skip: calculateSkip(page, limit),
-    take: limit,
-    orderBy: { [sortBy]: sortOrder },
-  });
+    bookmarks: userId
+      ? {
+          where: { userId },
+          select: { id: true },
+        }
+      : undefined,
+  };
+
+  let jobs;
+  let total: number | undefined;
+
+  if (paginationOptions) {
+    // Paginated query
+    total = await prisma.job.count({ where });
+
+    jobs = await prisma.job.findMany({
+      where,
+      include: includeClause,
+      skip: calculateSkip(paginationOptions.page!, paginationOptions.limit!),
+      take: paginationOptions.limit!,
+      orderBy: { [paginationOptions.sortBy!]: paginationOptions.sortOrder! },
+    });
+  } else {
+    // Non-paginated query - return all data
+    jobs = await prisma.job.findMany({
+      where,
+      include: includeClause,
+      orderBy: { createdAt: 'desc' }, // Default sorting
+    });
+  }
 
   const jobsWithBookmarkStatus = jobs.map((job) => ({
     ...job,
@@ -80,7 +91,7 @@ export const getJobs = async (
     bookmarks: undefined, // Remove the bookmarks array from response
   }));
 
-  return createPaginatedResponse(jobsWithBookmarkStatus, page, limit, total);
+  return createListResponse(jobsWithBookmarkStatus, paginationOptions, total);
 };
 
 /**

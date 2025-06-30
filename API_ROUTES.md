@@ -31,23 +31,28 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 📄 **Pagination**
+## 📄 **Pagination (Optional)**
 
-All list endpoints support pagination with the following query parameters:
+All list endpoints support **optional pagination**. You can choose between:
 
-### **Standard Pagination Parameters**
+- **Paginated**: Include `page` and/or `limit` parameters to get paginated results
+- **Unpaginated**: Omit pagination parameters to get all results at once
+
+### **Pagination Parameters**
 
 - `page` (optional): Page number (default: 1, minimum: 1)
 - `limit` (optional): Items per page (default: 10, minimum: 1, maximum: 100)
 - `sortBy` (optional): Sort field (varies by endpoint, see specific endpoint documentation)
 - `sortOrder` (optional): Sort direction - `asc` or `desc` (default: desc)
 
-### **Standard Pagination Response**
+### **Response Formats**
 
-All paginated endpoints return data in this format:
+**Paginated Response** (when pagination parameters are provided):
 
 ```json
 {
+  "success": true,
+  "message": "Data retrieved successfully",
   "data": [...],
   "pagination": {
     "page": 1,
@@ -58,6 +63,30 @@ All paginated endpoints return data in this format:
     "hasPrev": false
   }
 }
+```
+
+**Unpaginated Response** (when no pagination parameters are provided):
+
+```json
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "data": [...]
+}
+```
+
+### **Examples**
+
+**Get paginated jobs:**
+
+```
+GET /api/v1/jobs?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+```
+
+**Get all jobs (no pagination):**
+
+```
+GET /api/v1/jobs
 ```
 
 ---

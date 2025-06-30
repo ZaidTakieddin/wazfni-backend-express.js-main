@@ -5,7 +5,7 @@ import prisma from '../config/prisma';
 import {
   PaginationOptions,
   PaginatedResponse,
-  parsePaginationOptions,
+  parsePaginationOptionsLegacy,
   calculateSkip,
   createPaginatedResponse,
 } from '../utils/pagination';
@@ -83,7 +83,7 @@ export const getUserCategoryClicks = async (
     }
   >
 > => {
-  const { page, limit, sortBy, sortOrder } = parsePaginationOptions(
+  const { page, limit, sortBy, sortOrder } = parsePaginationOptionsLegacy(
     paginationOptions,
     'lastClickedAt',
   );
