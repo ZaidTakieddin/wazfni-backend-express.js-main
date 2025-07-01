@@ -339,6 +339,9 @@ export const approveJob = async (
         },
         channelId: 'job_alerts',
       });
+
+      // Also send general job alert notifications
+      await PushNotificationService.notifyUsersOfNewJob(jobWithSubcategories);
     }
   } catch (error) {
     console.error('Failed to send job recommendation notifications:', error);
