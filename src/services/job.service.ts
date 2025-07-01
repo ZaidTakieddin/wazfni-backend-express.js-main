@@ -8,10 +8,7 @@ import {
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
-import {
-  NotificationService,
-  NotificationTemplates,
-} from './notification.service';
+import { PushNotificationService } from './pushNotification.service';
 import {
   PaginationOptions,
   ListResponse,
@@ -178,11 +175,16 @@ export const createJob = async (
 
   // Send notification to admins about new job for review
   try {
-    const notification = NotificationTemplates.newJobForReview(
-      job.jobTitle,
-      company.name || 'شركة غير محددة',
-    );
-    await NotificationService.sendToAdmins(notification);
+    await PushNotificationService.sendToAdmins({
+      title: 'وظيفة جديدة للمراجعة',
+      body: `وظيفة ${job.jobTitle} في ${company.name || 'شركة غير محددة'} تحتاج للموافقة`,
+      data: {
+        type: 'admin_review',
+        jobId: job.id,
+        companyId: companyId,
+      },
+      channelId: 'admin_notifications',
+    });
   } catch (error) {
     console.error('Failed to send admin notification for new job:', error);
     // Don't throw error, just log it as notification failure shouldn't break job creation

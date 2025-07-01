@@ -917,12 +917,12 @@ GET /api/v1/jobs
 
 ---
 
-## 🔔 **Firebase Notification Routes**
+## 🔔 **Push Notification Routes (Expo)**
 
 **Base Path:** `/api/v1/fcm`
 **Auth Required:** ✅ Yes
 
-### **Register FCM Token**
+### **Register Expo Push Token**
 
 - **Method:** `POST`
 - **Endpoint:** `/register`
@@ -930,11 +930,20 @@ GET /api/v1/jobs
 
 ```json
 {
-  "token": "fcm_token_here"
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
 }
 ```
 
-### **Remove FCM Token**
+- **Response:**
+
+```json
+{
+  "success": true,
+  "message": "تم تسجيل رمز الإشعارات بنجاح"
+}
+```
+
+### **Remove Expo Push Token**
 
 - **Method:** `POST`
 - **Endpoint:** `/remove`
@@ -942,9 +951,35 @@ GET /api/v1/jobs
 
 ```json
 {
-  "token": "fcm_token_here"
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
 }
 ```
+
+- **Response:**
+
+```json
+{
+  "success": true,
+  "message": "تم حذف رمز الإشعارات بنجاح"
+}
+```
+
+### **Test Push Notification (Development)**
+
+- **Method:** `POST`
+- **Endpoint:** `/test`
+- **Body:** None
+
+- **Response:**
+
+```json
+{
+  "success": true,
+  "message": "تم إرسال الإشعار التجريبي بنجاح"
+}
+```
+
+**Note:** This endpoint sends a test notification to the authenticated user. It requires the user to have a registered Expo push token.
 
 ---
 

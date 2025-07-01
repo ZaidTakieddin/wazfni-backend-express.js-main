@@ -2,10 +2,7 @@ import { Company, Job, ApprovalStatus } from '@prisma/client';
 import httpStatus from 'http-status';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
-import {
-  NotificationService,
-  NotificationTemplates,
-} from './notification.service';
+import { PushNotificationService } from './pushNotification.service';
 import {
   PaginationOptions,
   PaginatedResponse,
@@ -119,10 +116,10 @@ export const approveCompany = async (
 
   // Send notification to company owner about approval
   try {
-    const notification = NotificationTemplates.companyApproved(
-      updatedCompany.name || 'شركتك',
+    await PushNotificationService.notifyCompanyApprovalStatus(
+      updatedCompany,
+      'APPROVED',
     );
-    await NotificationService.sendToCompanyOwner(companyId, notification);
   } catch (error) {
     console.error('Failed to send company approval notification:', error);
   }
@@ -166,11 +163,11 @@ export const rejectCompany = async (
 
   // Send notification to company owner about rejection
   try {
-    const notification = NotificationTemplates.companyRejected(
-      updatedCompany.name || 'شركتك',
+    await PushNotificationService.notifyCompanyApprovalStatus(
+      updatedCompany,
+      'REJECTED',
       rejectionReason,
     );
-    await NotificationService.sendToCompanyOwner(companyId, notification);
   } catch (error) {
     console.error('Failed to send company rejection notification:', error);
   }
@@ -310,8 +307,10 @@ export const approveJob = async (
 
   // Send notification to company owner about job approval
   try {
-    const notification = NotificationTemplates.jobApproved(updatedJob.jobTitle);
-    await NotificationService.sendToCompanyOwner(job.companyId, notification);
+    await PushNotificationService.notifyJobApprovalStatus(
+      updatedJob,
+      'APPROVED',
+    );
   } catch (error) {
     console.error('Failed to send job approval notification:', error);
   }
@@ -330,14 +329,16 @@ export const approveJob = async (
       const subCategoryIds = jobWithSubcategories.subCategories.map(
         (sc) => sc.id,
       );
-      const notification = NotificationTemplates.recommendedJob(
-        jobWithSubcategories.jobTitle,
-        jobWithSubcategories.company.name || 'شركة غير محددة',
-      );
-      await NotificationService.sendToInterestedUsers(
-        subCategoryIds,
-        notification,
-      );
+
+      await PushNotificationService.sendToInterestedUsers(subCategoryIds, {
+        title: 'وظيفة جديدة متاحة!',
+        body: `${jobWithSubcategories.jobTitle} في ${jobWithSubcategories.company.name || 'شركة غير محددة'}`,
+        data: {
+          type: 'job_alert',
+          jobId: jobWithSubcategories.id,
+        },
+        channelId: 'job_alerts',
+      });
     }
   } catch (error) {
     console.error('Failed to send job recommendation notifications:', error);
@@ -383,11 +384,11 @@ export const rejectJob = async (
 
   // Send notification to company owner about job rejection
   try {
-    const notification = NotificationTemplates.jobRejected(
-      updatedJob.jobTitle,
+    await PushNotificationService.notifyJobApprovalStatus(
+      updatedJob,
+      'REJECTED',
       rejectionReason,
     );
-    await NotificationService.sendToCompanyOwner(job.companyId, notification);
   } catch (error) {
     console.error('Failed to send job rejection notification:', error);
   }

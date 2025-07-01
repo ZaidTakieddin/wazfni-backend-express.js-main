@@ -12,10 +12,7 @@ import prisma from '../config/prisma';
 import { getRelativePath } from '../middlewares/upload';
 import ApiError from '../utils/ApiError';
 import { getUserProfile } from './user.service'; // To get profile CV path
-import {
-  NotificationService,
-  NotificationTemplates,
-} from './notification.service';
+import { PushNotificationService } from './pushNotification.service';
 import {
   PaginationOptions,
   PaginatedResponse,
@@ -134,13 +131,19 @@ export const createApplication = async (
     const applicantName =
       `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim() ||
       'متقدم جديد';
-    const notification = NotificationTemplates.newApplication(
-      application.job.jobTitle,
-      applicantName,
-    );
-    await NotificationService.sendToCompanyOwner(
+
+    await PushNotificationService.sendToCompanyOwner(
       application.job.companyId,
-      notification,
+      {
+        title: 'طلب توظيف جديد',
+        body: `${applicantName} تقدم لوظيفة ${application.job.jobTitle}`,
+        data: {
+          type: 'new_application',
+          applicationId: application.id,
+          jobId: jobId,
+        },
+        channelId: 'applications',
+      },
     );
   } catch (error) {
     console.error('Failed to send application notification:', error);
@@ -413,6 +416,17 @@ export const updateApplicationStatus = async (
       },
     },
   });
+
+  // 5. Send notification to applicant about status change
+  try {
+    await PushNotificationService.notifyApplicationStatusChange(
+      updatedApplication,
+      status,
+    );
+  } catch (error) {
+    console.error('Failed to send application status notification:', error);
+    // Don't throw error, just log it as notification failure shouldn't break status update
+  }
 
   return updatedApplication;
 };

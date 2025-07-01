@@ -27,6 +27,9 @@ const envVarsSchema = z.object({
   //     .string()
   //     .url('GOOGLE_CALLBACK_URL must be a valid URL'),
 
+  // Expo Push Notifications Configuration (Optional)
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+
   // Add other required environment variables here
   // e.g., EMAIL_HOST, EMAIL_PORT, etc.
 });
@@ -60,6 +63,9 @@ const config = {
     clientId: envVars.GOOGLE_CLIENT_ID,
     //     clientSecret: envVars.GOOGLE_CLIENT_SECRET,
     //     callbackUrl: envVars.GOOGLE_CALLBACK_URL,
+  },
+  expo: {
+    accessToken: envVars.EXPO_ACCESS_TOKEN,
   },
   database: {
     // url: envVars.DATABASE_URL // Already directly used by Prisma often
