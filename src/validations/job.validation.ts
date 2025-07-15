@@ -162,6 +162,7 @@ export const searchJobsSchema = z.object({
     city: z.string().optional(),
     subCategory: z.string().optional(),
     subCategoryId: z.string().cuid('Invalid subcategory ID').optional(),
+    categoryId: z.string().cuid('Invalid category ID').optional(), // Single category ID
     companyName: z.string().optional(),
     workType: z.string().optional(),
     // Add pagination parameters

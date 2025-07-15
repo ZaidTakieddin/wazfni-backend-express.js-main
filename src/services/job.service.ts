@@ -550,6 +550,7 @@ interface SearchOptions {
   city?: string;
   subCategory?: string; // Filtering by subcategory name
   subCategoryId?: string; // Filtering by subcategory ID
+  categoryId?: string; // Filtering by category ID
   companyName?: string;
   workType?: string;
 }
@@ -557,17 +558,20 @@ interface SearchOptions {
 /**
  * Search and filter jobs based on various criteria.
  * @param options - Search and filter parameters.
- * @returns A list of matching jobs.
+ * @param userId - Optional user ID to check bookmark status
+ * @returns A list of matching jobs with bookmark status if userId is provided.
  */
 export const searchAndFilterJobs = async (
   options: SearchOptions,
-): Promise<Job[]> => {
+  userId?: string,
+): Promise<any[]> => {
   const {
     searchTerm,
     title,
     city,
     subCategory,
     subCategoryId,
+    categoryId,
     companyName,
     workType,
   } = options;
@@ -647,6 +651,17 @@ export const searchAndFilterJobs = async (
     }
   }
 
+  // Filter by category ID
+  if (categoryId) {
+    filterConditions.push({
+      subCategories: {
+        some: {
+          categoryId: categoryId,
+        },
+      },
+    });
+  }
+
   // Filter by company name
   if (companyName) {
     filterConditions.push({
@@ -716,11 +731,24 @@ export const searchAndFilterJobs = async (
         // Add count of applications
         select: { applications: true },
       },
+      bookmarks: userId
+        ? {
+            where: { userId },
+            select: { id: true },
+          }
+        : undefined,
     },
     orderBy: {
       createdAt: 'desc', // Example ordering
     },
   });
 
-  return jobs;
+  // Add bookmark status to each job
+  const jobsWithBookmarkStatus = jobs.map((job) => ({
+    ...job,
+    isBookmarked: userId ? job.bookmarks.length > 0 : undefined,
+    bookmarks: undefined, // Remove the bookmarks array from response
+  }));
+
+  return jobsWithBookmarkStatus;
 };

@@ -519,18 +519,80 @@ GET /api/v1/jobs
 
 - **Method:** `GET`
 - **Endpoint:** `/search`
-- **Auth Required:** ❌ No
+- **Auth Required:** ❌ No (Optional: Include auth token to get bookmark status)
 - **Query Parameters:**
   - **Pagination:** `page`, `limit`, `sortOrder`
   - `sortBy` (optional): `createdAt`, `updatedAt`, `jobTitle`, `workType`, `contractType`, `experienceLevel`, `minSalary`, `maxSalary` (default: createdAt)
-  - `q` (optional): Search query
+  - `searchTerm` (optional): Search query across job title, description, requirements, and company name
+  - `title` (optional): Filter by job title (partial match)
+  - `city` (optional): Filter by company city (partial match)
   - `subCategory` (optional): Filter by subcategory name (partial match)
   - `subCategoryId` (optional): Filter by specific subcategory ID (exact match)
-  - `workType` (optional): Work type filter
-  - `contractType` (optional): Contract type filter
-  - `experienceLevel` (optional): Experience level filter
-  - `minSalary` (optional): Minimum salary
-  - `maxSalary` (optional): Maximum salary
+  - `categoryId` (optional): Filter by category ID (exact match)
+  - `companyName` (optional): Filter by company name (partial match)
+  - `workType` (optional): Work type filter (comma-separated for multiple values, e.g., "FULL_TIME,PART_TIME")
+
+**Examples:**
+
+```
+# Search for software jobs in Cairo
+GET /api/v1/jobs/search?searchTerm=software&city=cairo
+
+# Filter by category
+GET /api/v1/jobs/search?categoryId=tech_category_id
+
+# Filter by subcategory
+GET /api/v1/jobs/search?subCategoryId=web_dev_subcategory_id
+
+# Filter by work type
+GET /api/v1/jobs/search?workType=FULL_TIME,REMOTE
+
+# Search with pagination
+GET /api/v1/jobs/search?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+
+# Search with authentication (includes bookmark status)
+GET /api/v1/jobs/search?searchTerm=developer
+Authorization: Bearer <your_token>
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": "job_id",
+    "jobTitle": "Senior Software Engineer",
+    "description": "We are looking for a senior developer...",
+    "requirements": "5+ years of experience...",
+    "workType": "FULL_TIME",
+    "contractType": "REMOTE",
+    "experienceLevel": "SENIOR",
+    "minSalary": 5000,
+    "maxSalary": 8000,
+    "currency": "USD",
+    "salaryType": "RANGE",
+    "isBookmarked": true, // Only included if user is authenticated
+    "company": {
+      "id": "company_id",
+      "name": "Tech Company",
+      "city": "Cairo"
+    },
+    "subCategories": [
+      {
+        "id": "subcategory_id",
+        "name": "Web Development",
+        "category": {
+          "id": "category_id",
+          "name": "Technology"
+        }
+      }
+    ],
+    "_count": {
+      "applications": 15
+    }
+  }
+]
+```
 
 ### **Create Job Post**
 

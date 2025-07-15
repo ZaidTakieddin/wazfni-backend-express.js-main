@@ -190,6 +190,7 @@ export const searchJobs = catchAsync(async (req: Request, res: Response) => {
     city,
     subCategory,
     subCategoryId,
+    categoryId,
     companyName,
     workType,
   } = req.query;
@@ -200,11 +201,13 @@ export const searchJobs = catchAsync(async (req: Request, res: Response) => {
     city: city as string | undefined,
     subCategory: subCategory as string | undefined,
     subCategoryId: subCategoryId as string | undefined,
+    categoryId: categoryId as string | undefined,
     companyName: companyName as string | undefined,
     workType: workType as string | undefined,
   };
 
-  const jobs = await jobService.searchAndFilterJobs(searchOptions);
+  const userId = req.user?.id; // Optional user ID from auth
+  const jobs = await jobService.searchAndFilterJobs(searchOptions, userId);
   res.send(jobs);
 });
 
