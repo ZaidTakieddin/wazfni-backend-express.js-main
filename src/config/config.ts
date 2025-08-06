@@ -14,11 +14,8 @@ const envVarsSchema = z.object({
   //   PORT: z.coerce.number().default(5000),
   //   DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),
 
-  // JWT Configuration
+  // JWT Configuration - No expiration since tokens are unlimited
   //   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
-  JWT_ACCESS_EXPIRATION_MINUTES: z.coerce.number().default(30),
-  // Optional: Add JWT_REFRESH_EXPIRATION_DAYS if using refresh tokens
-  // JWT_REFRESH_EXPIRATION_DAYS: z.coerce.number().default(30),
 
   // Google OAuth Configuration
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
@@ -55,9 +52,7 @@ const config = {
   //   port: envVars.PORT,
   jwt: {
     //     secret: envVars.JWT_SECRET,
-    accessExpirationMinutes: envVars.JWT_ACCESS_EXPIRATION_MINUTES,
-    // Add refresh token expiration if needed
-    // refreshExpirationDays: envVars.JWT_REFRESH_EXPIRATION_DAYS,
+    // No expiration configuration since tokens are unlimited
   },
   google: {
     clientId: envVars.GOOGLE_CLIENT_ID,

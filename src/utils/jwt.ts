@@ -3,12 +3,9 @@ import ApiError from './ApiError';
 import httpStatus from 'http-status';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key_for_dev'; // Use env var
-// Default to 1 day in seconds if env var is not set or is invalid
-const JWT_EXPIRES_IN_SECONDS =
-  parseInt(process.env.JWT_EXPIRES_IN || '', 10) || 86400;
 
 /**
- * Generates a JWT token.
+ * Generates a JWT token with unlimited expiration.
  * @param userId - The ID of the user.
  * @returns The generated JWT token.
  */
@@ -30,7 +27,7 @@ export const generateToken = (userId: string): string => {
   // Explicitly type the secret and options
   const secret: Secret = JWT_SECRET;
   const options: SignOptions = {
-    expiresIn: JWT_EXPIRES_IN_SECONDS, // Use seconds
+    // No expiresIn option - token will never expire
   };
 
   return jwt.sign(payload, secret, options);

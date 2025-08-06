@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import moment from 'moment';
 import { User } from '@prisma/client';
 import * as authService from '../services/auth.service';
 import { generateToken } from '../utils/jwt';
-import config from '../config/config';
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 
@@ -31,16 +29,13 @@ export const googleCallback = catchAsync(
       );
     }
 
-    // Generate token and calculate expiration directly
+    // Generate token with unlimited expiration
     const accessToken = generateToken(user.id);
-    const accessTokenExpires = moment()
-      .add(config.jwt.accessExpirationMinutes, 'minutes')
-      .toDate();
 
     const tokens = {
       access: {
         token: accessToken,
-        expires: accessTokenExpires,
+        // No expiration since token never expires
       },
     };
 
