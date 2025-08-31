@@ -160,6 +160,53 @@ GET /api/v1/jobs
 - **Auth Required:** ✅ Yes
 - **Body:** Empty
 
+### **Forgot Password**
+
+- **Method:** `POST`
+- **Endpoint:** `/forgot-password`
+- **Auth Required:** ❌ No
+- **Body:**
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+- **Response:**
+
+```json
+{
+  "message": "If an account with that email exists, a password reset link has been sent."
+}
+```
+
+**Note:** For security reasons, the same message is returned regardless of whether the email exists or not.
+
+### **Reset Password**
+
+- **Method:** `POST`
+- **Endpoint:** `/reset-password`
+- **Auth Required:** ❌ No
+- **Body:**
+
+```json
+{
+  "token": "reset_token_from_email",
+  "newPassword": "newPassword123"
+}
+```
+
+- **Response:**
+
+```json
+{
+  "message": "Password has been reset successfully"
+}
+```
+
+**Note:** The reset token is provided in the email sent by the forgot password endpoint. Tokens expire after 1 hour and can only be used once.
+
 ---
 
 ## 👤 **User Management Routes**

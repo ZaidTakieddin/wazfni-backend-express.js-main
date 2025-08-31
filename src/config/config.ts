@@ -27,8 +27,14 @@ const envVarsSchema = z.object({
   // Expo Push Notifications Configuration (Optional)
   EXPO_ACCESS_TOKEN: z.string().optional(),
 
+  // Email Configuration (Optional)
+  EMAIL_HOST: z.string().optional(),
+  EMAIL_PORT: z.coerce.number().optional(),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+
   // Add other required environment variables here
-  // e.g., EMAIL_HOST, EMAIL_PORT, etc.
 });
 
 // Validate process.env against the schema
@@ -61,6 +67,13 @@ const config = {
   },
   expo: {
     accessToken: envVars.EXPO_ACCESS_TOKEN,
+  },
+  email: {
+    host: envVars.EMAIL_HOST,
+    port: envVars.EMAIL_PORT,
+    user: envVars.EMAIL_USER,
+    password: envVars.EMAIL_PASSWORD,
+    from: envVars.EMAIL_FROM,
   },
   database: {
     // url: envVars.DATABASE_URL // Already directly used by Prisma often

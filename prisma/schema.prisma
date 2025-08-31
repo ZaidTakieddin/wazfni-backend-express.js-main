@@ -91,12 +91,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  applications   Application[] // User's applications
-  profile        UserProfile?
-  company        Company?
-  bookmarks      Bookmark[] // Add bookmarks relation
-  categoryClicks CategoryClick[] // Many-to-many relation with categories
-  jobViewHistory JobViewHistory[] // Many-to-many relation with jobs
+  applications        Application[] // User's applications
+  profile             UserProfile?
+  company             Company?
+  bookmarks           Bookmark[] // Add bookmarks relation
+  categoryClicks      CategoryClick[] // Many-to-many relation with categories
+  jobViewHistory      JobViewHistory[] // Many-to-many relation with jobs
+  passwordResetTokens PasswordResetToken[] // Password reset tokens
 }
 
 model UserProfile {
@@ -319,4 +320,19 @@ model JobViewHistory {
   @@index([userId])
   @@index([jobId])
   @@index([lastViewedAt]) // Index for sorting by last view
+}
+
+// Password reset token model for forgot password functionality
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }

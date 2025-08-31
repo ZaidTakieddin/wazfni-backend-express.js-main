@@ -7,6 +7,8 @@ import {
   registerSchema,
   changePasswordSchema,
   googleAuthSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from '../validations/auth.validation';
 
 const router = express.Router();
@@ -31,6 +33,19 @@ router.patch(
 // Requires user to be authenticated to logout
 router.post('/logout', auth, authController.logout);
 
-// TODO: Add routes for refresh-tokens, forgot-password, reset-password
+// === Password Reset ===
+// Public routes for password reset (no authentication required)
+router.post(
+  '/forgot-password',
+  validate(forgotPasswordSchema),
+  authController.forgotPassword,
+);
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
+
+// TODO: Add routes for refresh-tokens
 
 export default router;

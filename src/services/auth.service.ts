@@ -2,10 +2,12 @@ import bcrypt from 'bcrypt';
 import httpStatus from 'http-status';
 import { User, Prisma } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
 import prisma from '../config/prisma';
 import ApiError from '../utils/ApiError';
 import { generateToken } from '../utils/jwt';
 import config from '../config/config';
+import { EmailService } from './email.service';
 
 // Initialize Google OAuth2 client
 const googleClient = new OAuth2Client(config.google.clientId);
@@ -291,4 +293,144 @@ export const googleAuth = async (
     console.error('Google authentication error:', error);
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Google authentication failed');
   }
+};
+
+/**
+ * Initiates password reset process by generating and sending reset token.
+ * @param email - The email of the user requesting password reset.
+ * @returns A success message.
+ * @throws {ApiError} if the user is not found or doesn't have a password.
+ */
+export const forgotPassword = async (
+  email: string,
+): Promise<{ message: string }> => {
+  // Find the user by email
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    // For security reasons, don't reveal whether the email exists or not
+    return {
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    };
+  }
+
+  // Check if user has a password (not a Google-only user)
+  if (!user.passwordHash) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'This account was created with Google. Please use Google sign-in instead.',
+    );
+  }
+
+  // Generate a secure random token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Set expiration to 1 hour from now
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  // Delete any existing unused reset tokens for this user
+  await prisma.passwordResetToken.deleteMany({
+    where: {
+      userId: user.id,
+      used: false,
+    },
+  });
+
+  // Create a new reset token
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      token: resetToken,
+      expiresAt,
+    },
+  });
+
+  // Send password reset email
+  try {
+    await EmailService.sendPasswordResetEmail(
+      user.email,
+      resetToken,
+      user.firstName || undefined,
+    );
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    // Don't throw error to prevent revealing whether user exists
+  }
+
+  return {
+    message:
+      'If an account with that email exists, a password reset link has been sent.',
+  };
+};
+
+/**
+ * Resets user password using a valid reset token.
+ * @param token - The password reset token.
+ * @param newPassword - The new password to set.
+ * @returns A success message.
+ * @throws {ApiError} if the token is invalid, expired, or already used.
+ */
+export const resetPassword = async (
+  token: string,
+  newPassword: string,
+): Promise<{ message: string }> => {
+  // Find the reset token
+  const resetTokenRecord = await prisma.passwordResetToken.findUnique({
+    where: { token },
+    include: { user: true },
+  });
+
+  if (!resetTokenRecord) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Invalid or expired reset token',
+    );
+  }
+
+  // Check if token is already used
+  if (resetTokenRecord.used) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Reset token has already been used',
+    );
+  }
+
+  // Check if token is expired
+  if (resetTokenRecord.expiresAt < new Date()) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Reset token has expired');
+  }
+
+  // Hash the new password
+  const hashedNewPassword = await hashPassword(newPassword);
+
+  // Update the user's password and mark token as used in a transaction
+  await prisma.$transaction([
+    // Update user password
+    prisma.user.update({
+      where: { id: resetTokenRecord.userId },
+      data: { passwordHash: hashedNewPassword },
+    }),
+    // Mark token as used
+    prisma.passwordResetToken.update({
+      where: { id: resetTokenRecord.id },
+      data: { used: true },
+    }),
+  ]);
+
+  // Clean up expired tokens for this user (optional cleanup)
+  prisma.passwordResetToken
+    .deleteMany({
+      where: {
+        userId: resetTokenRecord.userId,
+        OR: [{ used: true }, { expiresAt: { lt: new Date() } }],
+      },
+    })
+    .catch((error) => {
+      console.error('Failed to clean up expired tokens:', error);
+    });
+
+  return { message: 'Password has been reset successfully' };
 };
